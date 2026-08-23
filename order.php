@@ -15,7 +15,7 @@ try {
         exit('Order not found.');
     }
 
-    $i = $pdo->prepare('SELECT * FROM order_items WHERE order_id=? ORDER BY id');
+    $i = $pdo->prepare('SELECT order_items.*, products.image_url FROM order_items LEFT JOIN products ON products.id=order_items.product_id WHERE order_items.order_id=? ORDER BY order_items.id');
     $i->execute([$order['id']]);
     $items = $i->fetchAll();
 } catch (Throwable $e) {
@@ -39,7 +39,7 @@ body{margin:0;background:#09070a;color:#f8f2eb;font-family:Arial,sans-serif}
 .wrap{max-width:720px;width:92%;margin:35px auto}.brand{text-align:center;color:#f0d18b;font:700 25px Georgia;letter-spacing:2px}.sub{text-align:center;color:#d9879b;font-size:11px;letter-spacing:4px;margin-top:4px}
 .box{background:#151116;border:1px solid #e1b86644;border-radius:20px;padding:25px;margin-top:22px}
 h1,h2{font-family:Georgia}.id{font-size:24px;color:#f0d18b}.row{display:flex;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid #ffffff12;font-size:14px}.muted{color:#aaa1a5}.total{font-size:20px;font-weight:bold;color:#f0d18b}
-.badge{display:inline-block;padding:8px 12px;border-radius:999px;background:#251d11;color:#f0d18b;font-size:12px}
+.badge{display:inline-block;padding:8px 12px;border-radius:999px;background:#251d11;color:#f0d18b;font-size:12px}.item-row{display:flex;align-items:center;gap:13px;padding:10px 0;border-bottom:1px solid #ffffff12}.item-image,.item-placeholder{width:56px;height:56px;flex:none;border-radius:10px;object-fit:cover}.item-placeholder{display:grid;place-items:center;background:#251d11;color:#f0d18b;font:italic 22px Georgia}.item-copy{display:flex;justify-content:space-between;align-items:center;gap:15px;width:100%;font-size:14px}.item-copy strong{font-weight:400}.item-copy span{color:#f0d18b;white-space:nowrap}
 .btn{display:inline-block;padding:13px 18px;border-radius:999px;background:#25d366;color:white;text-decoration:none;font-weight:bold;margin-top:15px}
 .notice{font-size:12px;line-height:1.6;color:#999}
 </style></head>
@@ -59,7 +59,7 @@ h1,h2{font-family:Georgia}.id{font-size:24px;color:#f0d18b}.row{display:flex;jus
 <div class="box">
 <h2>Items</h2>
 <?php foreach($items as $item): ?>
-<div class="row"><span><?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?> × <?=intval($item['quantity'])?></span><span><?=naira($item['unit_price_kobo']*$item['quantity'])?></span></div>
+<div class="item-row"><?php if (!empty($item['image_url'])): ?><img class="item-image" src="<?=htmlspecialchars($item['image_url'], ENT_QUOTES, 'UTF-8')?>" alt="<?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?>"><?php else: ?><div class="item-placeholder">BL</div><?php endif; ?><div class="item-copy"><strong><?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?> × <?=intval($item['quantity'])?></strong><span><?=naira($item['unit_price_kobo']*$item['quantity'])?></span></div></div>
 <?php endforeach; ?>
 <div class="row total"><span>Total</span><span><?=naira($order['total_kobo'])?></span></div>
 <a class="btn" href="https://wa.me/<?=$config['whatsapp']?>?text=<?=rawurlencode($waMsg)?>">Chat on WhatsApp</a>
