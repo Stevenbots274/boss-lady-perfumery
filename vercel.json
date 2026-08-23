@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.php": {
+      "runtime": "vercel-php@0.9.0"
+    }
+  },
+  "routes": [
+    { "src": "^/order/([a-fA-F0-9]{64})/?$", "dest": "/api/index.php?route=/order/$1" },
+    { "src": "^/api/create-order\\.php$", "dest": "/api/index.php?route=/api/create-order.php" },
+    { "src": "^/api/track-order\\.php$", "dest": "/api/index.php?route=/api/track-order.php" },
+    { "src": "^/admin\\.php$", "dest": "/api/index.php?route=/admin.php" },
+    { "src": "^/order\\.php$", "dest": "/api/index.php?route=/order.php" },
+    { "src": "^/$", "dest": "/api/index.php?route=/" },
+    { "src": "^/index\\.php$", "dest": "/api/index.php?route=/" },
+    { "src": "^/.*\\.(php|sql|md)$", "status": 404 },
+    { "src": "^/.*$", "status": 404 }
+  ]
+}

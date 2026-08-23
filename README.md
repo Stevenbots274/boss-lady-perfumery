@@ -28,6 +28,9 @@ The storefront does not load the Paystack SDK or claim to accept online card pay
 
 For an existing installation, run `migration-security.sql` before deploying the updated PHP files. Configure the Apache virtual host with the real canonical `ServerName`; non-Apache servers must add equivalent HTTPS, HSTS, dot-file, and source-file blocking rules.
 
+### Vercel
+The included `vercel.json` uses the `vercel-php` community runtime and routes the application through `api/index.php`. Add all `BL_*` environment variables to the Vercel project and import `schema.sql` into an external MySQL database. Vercel's filesystem is ephemeral, so do not use it for database storage.
+
 ### Environment variables
 - `BL_DB_DSN` — for example `mysql:host=localhost;dbname=boss_lady;charset=utf8mb4`
 - `BL_DB_USER` and `BL_DB_PASSWORD` — a least-privilege MySQL account
