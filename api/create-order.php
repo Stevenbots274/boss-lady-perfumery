@@ -213,7 +213,7 @@ $message = "Hello Boss Lady Perfumery 👋\n\n" .
     "Total: ₦" . number_format($total / 100, 2) . "\n\n" .
     "Items:\n" . implode("\n", $itemLines) . "\n" .
     "Delivery: " . $address . "\n" .
-    "🔗 View complete order:\n" . $orderUrl . "\n" .
+    "🔗 View order and product images:\n" . $orderUrl . "\n" .
     "Please confirm availability and send payment details. Thank you ❤️";
 
 echo json_encode([

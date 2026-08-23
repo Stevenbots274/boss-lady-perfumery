@@ -1,5 +1,7 @@
 # Boss Lady Perfumery — WhatsApp Commerce Store
 
+Live site: https://bossladyperfumery.vercel.app
+
 ## Customer flow
 Shop → Add to cart → Enter delivery details → Get Order ID → Continue to WhatsApp → Confirm payment & delivery on WhatsApp.
 
@@ -11,7 +13,7 @@ Shop → Add to cart → Enter delivery details → Get Order ID → Continue to
 - Order tracking page
 - WhatsApp checkout
 - WhatsApp ordering directly from every product
-- Admin page for adding/hiding products and updating order status
+- Admin workspace for products, orders, payment status, and settings
 - Supabase PostgreSQL database
 
 ## Payment
@@ -52,7 +54,7 @@ The WhatsApp number currently configured is 2349067956221.
 Each order has a private URL containing a high-entropy access token, like:
 `https://YOUR-DOMAIN.com/order/64-character-token`
 
-No customer login is required. Anyone who has the complete private link can view the order page. The order link is automatically included in the WhatsApp message sent to Boss Lady. The order ID and checkout phone number are required for status tracking.
+No customer login is required. Anyone who has the complete private link can view the order page. The order link is automatically included in the WhatsApp message sent to Boss Lady, where the product images can be opened at full size. The order ID and checkout phone number are required for status tracking.
 
 ## Admin security
 - `/admin.php` requires the authorized Supabase Auth email and password.
