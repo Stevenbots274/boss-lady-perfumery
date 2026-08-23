@@ -5,7 +5,7 @@ RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
 
 Options -Indexes
-<FilesMatch "^(config|db)\.php$|^(schema|README)\.(sql|md)$">
+<FilesMatch "^(config|db)\.php$|^(schema|migration-security|README)\.(sql|md)$">
     Require all denied
 </FilesMatch>
 <FilesMatch "^\.">

@@ -12,6 +12,7 @@ function naira($kobo){ return '₦'.number_format($kobo/100, 2); }
 ?>
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg">
 <title>Boss Lady Perfumery</title>
 <style>
 :root{--bg:#080609;--card:#141016;--gold:#e1b866;--pink:#d9879b;--text:#f8f2eb;--muted:#b9b0b4}

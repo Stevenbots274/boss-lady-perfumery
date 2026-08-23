@@ -32,6 +32,7 @@ $waMsg = "Hello Boss Lady Perfumery, I am viewing order ".$order['order_code']."
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg">
 <title><?=htmlspecialchars($order['order_code'], ENT_QUOTES, 'UTF-8')?> | Boss Lady Perfumery</title>
 <style>
 body{margin:0;background:#09070a;color:#f8f2eb;font-family:Arial,sans-serif}

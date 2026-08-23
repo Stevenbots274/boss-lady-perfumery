@@ -11,6 +11,12 @@ CREATE TABLE products (
   CHECK (stock IS NULL OR stock >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE rate_limits (
+  rate_key CHAR(64) PRIMARY KEY,
+  window_started DATETIME NOT NULL,
+  request_count INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
   order_code VARCHAR(40) NOT NULL UNIQUE,

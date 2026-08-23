@@ -80,36 +80,47 @@ if (!isset($input['items']) || !is_array($input['items']) || !$input['items'] ||
     fail_request(422, 'Add at least one valid product.');
 }
 
-function order_rate_allowed($key)
+function order_rate_allowed($pdo, $key)
 {
-    $path = sys_get_temp_dir() . '/boss-lady-orders-' . hash('sha256', $key);
-    $handle = @fopen($path, 'c+');
-    if (!$handle || !flock($handle, LOCK_EX)) {
-        if ($handle) {
-            fclose($handle);
+    try {
+        $rateKey = hash('sha256', $key);
+        $pdo->beginTransaction();
+        $insert = $pdo->prepare('INSERT IGNORE INTO rate_limits(rate_key,window_started,request_count) VALUES(?,NOW(),0)');
+        $insert->execute([$rateKey]);
+        $select = $pdo->prepare('SELECT window_started,request_count FROM rate_limits WHERE rate_key=? FOR UPDATE');
+        $select->execute([$rateKey]);
+        $row = $select->fetch();
+        if (!$row) {
+            throw new RuntimeException('Rate limit record could not be created.');
         }
-        return true;
+        $windowStarted = strtotime($row['window_started']);
+        if ($windowStarted === false || time() - $windowStarted >= 600) {
+            $update = $pdo->prepare('UPDATE rate_limits SET window_started=NOW(),request_count=1 WHERE rate_key=?');
+            $update->execute([$rateKey]);
+            $allowed = true;
+        } elseif ((int) $row['request_count'] >= 10) {
+            $allowed = false;
+        } else {
+            $update = $pdo->prepare('UPDATE rate_limits SET request_count=request_count+1 WHERE rate_key=?');
+            $update->execute([$rateKey]);
+            $allowed = true;
+        }
+        $pdo->commit();
+        return $allowed;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('Boss Lady order rate limit failed.');
+        return null;
     }
-
-    $entries = json_decode(stream_get_contents($handle) ?: '[]', true);
-    $cutoff = time() - 600;
-    $entries = is_array($entries) ? array_values(array_filter($entries, function ($entry) use ($cutoff) {
-        return is_int($entry) && $entry >= $cutoff;
-    })) : [];
-    $allowed = count($entries) < 10;
-    if ($allowed) {
-        $entries[] = time();
-        ftruncate($handle, 0);
-        rewind($handle);
-        fwrite($handle, json_encode($entries));
-        fflush($handle);
-    }
-    flock($handle, LOCK_UN);
-    fclose($handle);
-    return $allowed;
 }
 
-if (!order_rate_allowed((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'))) {
+$rateAllowed = order_rate_allowed($pdo, (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+if ($rateAllowed === null) {
+    fail_request(503, 'Ordering is temporarily unavailable.');
+}
+if (!$rateAllowed) {
     header('Retry-After: 600');
     fail_request(429, 'Too many orders from this address. Try again later.');
 }

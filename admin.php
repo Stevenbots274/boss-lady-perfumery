@@ -1,23 +1,23 @@
 <?php
-ini_set('session.use_strict_mode', '1');
-session_set_cookie_params([
-    'httponly' => true,
-    'secure' => true,
-    'samesite' => 'Lax',
-]);
-session_start();
 $config = require __DIR__ . '/config.php';
 require __DIR__ . '/db.php';
 
-if (!isset($_SESSION['csrf'])) {
-    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+function set_auth_cookie($name, $value, $expires)
+{
+    setcookie($name, $value, [
+        'expires' => $expires,
+        'path' => '/',
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
 }
 
-function csrf_ok()
+function csrf_ok($csrfToken)
 {
-    return isset($_POST['csrf'], $_SESSION['csrf'])
+    return isset($_POST['csrf'])
         && is_string($_POST['csrf'])
-        && hash_equals($_SESSION['csrf'], $_POST['csrf']);
+        && hash_equals($csrfToken, $_POST['csrf']);
 }
 
 function h($value)
@@ -25,59 +25,84 @@ function h($value)
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_ok()) {
+function supabase_user($accessToken, $config)
+{
+    if (!function_exists('curl_init') || !$config['supabase_url'] || !$config['supabase_anon_key']) {
+        return null;
+    }
+    $curl = curl_init($config['supabase_url'] . '/auth/v1/user');
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',
+            'apikey: ' . $config['supabase_anon_key'],
+            'Authorization: Bearer ' . $accessToken,
+        ],
+    ]);
+    $body = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    curl_close($curl);
+    if ($body === false || $status !== 200) {
+        return null;
+    }
+    $user = json_decode($body, true);
+    return is_array($user) ? $user : null;
+}
+
+$csrfCookie = $_COOKIE['__Host-bl_admin_csrf'] ?? null;
+$csrfValid = is_string($csrfCookie) && preg_match('/^[a-f0-9]{64}$/', $csrfCookie);
+$csrfToken = $csrfValid ? $csrfCookie : bin2hex(random_bytes(32));
+if (!$csrfValid) {
+    set_auth_cookie('__Host-bl_admin_csrf', $csrfToken, time() + 86400);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_ok($csrfToken)) {
     http_response_code(403);
     exit('Invalid request.');
 }
 
-$now = time();
-if (isset($_SESSION['admin'])) {
-    if (($now - (int) ($_SESSION['last_activity'] ?? $now)) > 1800
-        || ($now - (int) ($_SESSION['created_at'] ?? $now)) > 28800) {
-        session_unset();
-        session_destroy();
-        header('Location: admin.php');
-        exit;
-    }
-    $_SESSION['last_activity'] = $now;
-}
+$adminToken = is_string($_COOKIE['__Host-bl_admin_token'] ?? null) ? $_COOKIE['__Host-bl_admin_token'] : '';
+$adminUser = strlen($adminToken) <= 4096 ? supabase_user($adminToken, $config) : null;
+$adminAuthorized = $adminUser
+    && isset($adminUser['email'])
+    && is_string($adminUser['email'])
+    && $config['admin_email']
+    && hash_equals($config['admin_email'], strtolower($adminUser['email']));
 
-if (!isset($_SESSION['admin'])) {
+if (!$adminAuthorized) {
     $loginError = '';
-    $blockedUntil = (int) ($_SESSION['login_blocked_until'] ?? 0);
     if (isset($_POST['login'])) {
-        $user = is_string($_POST['user'] ?? null) ? $_POST['user'] : '';
-        $pass = is_string($_POST['pass'] ?? null) ? $_POST['pass'] : '';
-        $blocked = $blockedUntil > $now;
-        $valid = !$blocked
-            && hash_equals((string) $config['admin_user'], $user)
-            && password_verify($pass, (string) $config['admin_password_hash']);
+        $accessToken = is_string($_POST['supabase_token'] ?? null) ? trim($_POST['supabase_token']) : '';
+        $user = strlen($accessToken) <= 4096 ? supabase_user($accessToken, $config) : null;
+        $valid = $user
+            && isset($user['email'])
+            && is_string($user['email'])
+            && $config['admin_email']
+            && hash_equals($config['admin_email'], strtolower($user['email']));
         if ($valid) {
-            session_regenerate_id(true);
-            $_SESSION['admin'] = true;
-            $_SESSION['created_at'] = $now;
-            $_SESSION['last_activity'] = $now;
-            unset($_SESSION['login_attempts'], $_SESSION['login_blocked_until']);
+            set_auth_cookie('__Host-bl_admin_token', $accessToken, time() + 3600);
             header('Location: admin.php');
             exit;
         }
-        $attempts = (int) ($_SESSION['login_attempts'] ?? 0) + 1;
-        $_SESSION['login_attempts'] = $attempts;
-        if ($attempts >= 5) {
-            $_SESSION['login_blocked_until'] = $now + 300;
-        }
-        $loginError = 'Invalid username or password.';
+        http_response_code(401);
+        $loginError = 'Supabase sign-in failed or this account is not authorized.';
     }
     ?>
-<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Boss Lady Admin</title><style>body{font-family:Arial;background:#09070a;color:#fff;max-width:420px;margin:10vh auto;padding:20px}input{width:100%;padding:13px;margin:7px 0 12px;background:#151116;color:#fff;border:1px solid #ffffff22;border-radius:8px}button{padding:13px 18px;background:#e1b866;border:0;border-radius:8px;font-weight:bold}.error{color:#ff9eb3;font-size:13px}</style><h1>Boss Lady Admin</h1><?php if ($loginError): ?><p class="error"><?=h($loginError)?></p><?php endif; ?><form method="post"><input type="hidden" name="csrf" value="<?=h($_SESSION['csrf'])?>"><input name="user" placeholder="Username" autocomplete="username" required><input name="pass" type="password" placeholder="Password" autocomplete="current-password" required><button name="login" value="1">Login</button></form><?php exit;
+<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg"><title>Boss Lady Admin</title><style>body{font-family:Arial;background:#09070a;color:#fff;max-width:420px;margin:10vh auto;padding:20px}input{width:100%;padding:13px;margin:7px 0 12px;background:#151116;color:#fff;border:1px solid #ffffff22;border-radius:8px}button{padding:13px 18px;background:#e1b866;border:0;border-radius:8px;font-weight:bold}.error{color:#ff9eb3;font-size:13px}</style><h1>Boss Lady Admin</h1><?php if ($loginError): ?><p class="error"><?=h($loginError)?></p><?php endif; ?><form id="supabaseLogin" method="post" data-supabase-url="<?=h($config['supabase_url'])?>" data-supabase-anon-key="<?=h($config['supabase_anon_key'])?>"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><input name="email" type="email" placeholder="Admin email" autocomplete="username" required><input name="password" type="password" placeholder="Password" autocomplete="current-password" required><button name="login" value="1">Sign in</button></form><script>document.getElementById('supabaseLogin').addEventListener('submit',async function(event){event.preventDefault();const form=event.currentTarget;const button=form.querySelector('button');button.disabled=true;try{const auth=await fetch(form.dataset.supabaseUrl+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':form.dataset.supabaseAnonKey},body:JSON.stringify({email:form.email.value,password:form.password.value})});const data=await auth.json();if(!auth.ok||!data.access_token)throw new Error('sign-in failed');const response=await fetch('admin.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'text/html'},body:new URLSearchParams({csrf:form.csrf.value,login:'1',supabase_token:data.access_token})});if(!response.ok)throw new Error('authorization failed');window.location.reload()}catch(_){button.disabled=false;alert('Sign-in failed. Check your details or ask the administrator to authorize this account.')}});</script><?php exit;
 }
 
-$notice = $_SESSION['notice'] ?? '';
-unset($_SESSION['notice']);
+$notices = [
+    'product-published' => 'Product published.',
+    'product-hidden' => 'Product hidden.',
+    'order-updated' => 'Order status updated.',
+];
+$notice = $notices[$_GET['notice'] ?? ''] ?? '';
 $allowedStatuses = ['new', 'processing', 'ready', 'shipped', 'delivered', 'cancelled'];
 if (isset($_POST['logout'])) {
-    session_unset();
-    session_destroy();
+    set_auth_cookie('__Host-bl_admin_token', '', time() - 3600);
+    set_auth_cookie('__Host-bl_admin_csrf', '', time() - 3600);
     header('Location: admin.php');
     exit;
 }
@@ -103,8 +128,7 @@ if (isset($_POST['save'])) {
             $stock = $stockInput === '' ? null : (int) $stockInput;
             $s = $pdo->prepare('INSERT INTO products(name,description,price_kobo,image_url,stock) VALUES(?,?,?,?,?)');
             $s->execute([$name, $description ?: null, $price, $image ?: null, $stock]);
-            $_SESSION['notice'] = 'Product published.';
-            header('Location: admin.php');
+            header('Location: admin.php?notice=product-published');
             exit;
         } catch (Throwable $e) {
             error_log('Boss Lady product creation failed.');
@@ -123,8 +147,7 @@ if (isset($_POST['del'])) {
         try {
             $s = $pdo->prepare('UPDATE products SET active=0 WHERE id=?');
             $s->execute([$id]);
-            $_SESSION['notice'] = 'Product hidden.';
-            header('Location: admin.php');
+            header('Location: admin.php?notice=product-hidden');
             exit;
         } catch (Throwable $e) {
             error_log('Boss Lady product update failed.');
@@ -179,8 +202,7 @@ if (isset($_POST['status'])) {
             }
             $s->execute([$status, $id]);
             $pdo->commit();
-            $_SESSION['notice'] = 'Order status updated.';
-            header('Location: admin.php');
+            header('Location: admin.php?notice=order-updated');
             exit;
         } catch (InvalidArgumentException $e) {
             if ($pdo->inTransaction()) {
@@ -205,10 +227,10 @@ try {
     http_response_code(500);
     exit('Service temporarily unavailable.');
 }
-?><!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Boss Lady Admin</title>
+?><!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg"><title>Boss Lady Admin</title>
 <style>body{margin:0;background:#09070a;color:#eee;font-family:Arial}.wrap{max-width:1050px;margin:auto;padding:24px}.box{background:#151116;border:1px solid #e1b86633;border-radius:14px;padding:20px;margin:18px 0}input,textarea,select{padding:11px;background:#0d0a0e;color:#fff;border:1px solid #ffffff22;border-radius:7px;margin:5px;width:calc(100% - 22px)}button{padding:11px 16px;border:0;border-radius:7px;background:#e1b866;font-weight:bold}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid #ffffff15;text-align:left;font-size:13px}.notice{color:#f0d18b;font-size:13px}.danger{background:transparent;color:#e1b866;padding:0}</style>
-<div class="wrap"><h1>Boss Lady Perfumery — Admin</h1><?php if ($notice): ?><p class="notice"><?=h($notice)?></p><?php endif; ?><form method="post"><input type="hidden" name="csrf" value="<?=h($_SESSION['csrf'])?>"><button name="logout" value="1">Log out</button></form>
-<div class="box"><h2>Add Product</h2><form method="post"><input type="hidden" name="csrf" value="<?=h($_SESSION['csrf'])?>"><input name="name" placeholder="Product name" maxlength="160" required><textarea name="description" maxlength="5000" placeholder="Description"></textarea><input name="price" type="number" min="0.01" step=".01" placeholder="Price in NGN" required><input name="image_url" type="url" maxlength="500" placeholder="HTTPS product image URL"><input name="stock" type="number" min="0" placeholder="Stock (blank = unlimited)"><button name="save" value="1">Publish Product</button></form></div>
-<div class="box"><h2>Products</h2><table><tr><th>Name</th><th>Price</th><th>Stock</th><th></th></tr><?php foreach ($products as $p): ?><tr><td><?=h($p['name'])?></td><td>₦<?=number_format($p['price_kobo'] / 100, 2)?></td><td><?=$p['stock'] === null ? 'Unlimited' : (int) $p['stock']?></td><td><form method="post"><input type="hidden" name="csrf" value="<?=h($_SESSION['csrf'])?>"><button class="danger" name="del" value="<?= (int) $p['id'] ?>">Hide</button></form></td></tr><?php endforeach; ?></table></div>
-<div class="box"><h2>Orders</h2><table><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Private page</th><th>Status</th></tr><?php foreach ($orders as $o): ?><tr><td><?=h($o['order_code'])?></td><td><?=h($o['customer_name'])?></td><td>₦<?=number_format($o['total_kobo'] / 100, 2)?></td><td><?=h($o['payment_status'])?></td><td><a style="color:#e1b866" href="<?=h(rtrim($config['site_url'], '/') . '/order/' . $o['order_token'])?>" target="_blank" rel="noreferrer">View</a></td><td><form method="post"><input type="hidden" name="csrf" value="<?=h($_SESSION['csrf'])?>"><input type="hidden" name="id" value="<?= (int) $o['id'] ?>"><select name="status" onchange="this.form.submit()"><?php foreach ($allowedStatuses as $status): ?><option value="<?=h($status)?>"<?=$o['order_status'] === $status ? ' selected' : ''?>><?=h($status)?></option><?php endforeach; ?></select></form></td></tr><?php endforeach; ?></table></div>
+<div class="wrap"><h1>Boss Lady Perfumery — Admin</h1><?php if ($notice): ?><p class="notice"><?=h($notice)?></p><?php endif; ?><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><button name="logout" value="1">Log out</button></form>
+<div class="box"><h2>Add Product</h2><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><input name="name" placeholder="Product name" maxlength="160" required><textarea name="description" maxlength="5000" placeholder="Description"></textarea><input name="price" type="number" min="0.01" step=".01" placeholder="Price in NGN" required><input name="image_url" type="url" maxlength="500" placeholder="HTTPS product image URL"><input name="stock" type="number" min="0" placeholder="Stock (blank = unlimited)"><button name="save" value="1">Publish Product</button></form></div>
+<div class="box"><h2>Products</h2><table><tr><th>Name</th><th>Price</th><th>Stock</th><th></th></tr><?php foreach ($products as $p): ?><tr><td><?=h($p['name'])?></td><td>₦<?=number_format($p['price_kobo'] / 100, 2)?></td><td><?=$p['stock'] === null ? 'Unlimited' : (int) $p['stock']?></td><td><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><button class="danger" name="del" value="<?= (int) $p['id'] ?>">Hide</button></form></td></tr><?php endforeach; ?></table></div>
+<div class="box"><h2>Orders</h2><table><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Private page</th><th>Status</th></tr><?php foreach ($orders as $o): ?><tr><td><?=h($o['order_code'])?></td><td><?=h($o['customer_name'])?></td><td>₦<?=number_format($o['total_kobo'] / 100, 2)?></td><td><?=h($o['payment_status'])?></td><td><a style="color:#e1b866" href="<?=h(rtrim($config['site_url'], '/') . '/order/' . $o['order_token'])?>" target="_blank" rel="noreferrer">View</a></td><td><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><input type="hidden" name="id" value="<?= (int) $o['id'] ?>"><select name="status" onchange="this.form.submit()"><?php foreach ($allowedStatuses as $status): ?><option value="<?=h($status)?>"<?=$o['order_status'] === $status ? ' selected' : ''?>><?=h($status)?></option><?php endforeach; ?></select></form></td></tr><?php endforeach; ?></table></div>
 </div>

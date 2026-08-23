@@ -8,3 +8,8 @@ ALTER TABLE orders ADD COLUMN stock_released_at TIMESTAMP NULL DEFAULT NULL AFTE
 UPDATE orders SET stock_released_at = CURRENT_TIMESTAMP WHERE order_status = 'cancelled' AND stock_released_at IS NULL;
 ALTER TABLE products MODIFY stock INT NULL DEFAULT NULL;
 ALTER TABLE order_items ADD CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
+CREATE TABLE IF NOT EXISTS rate_limits (
+  rate_key CHAR(64) PRIMARY KEY,
+  window_started DATETIME NOT NULL,
+  request_count INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
