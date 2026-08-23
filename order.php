@@ -1,16 +1,28 @@
 <?php
-require __DIR__.'/db.php';
-$code = trim($_GET['code'] ?? '');
-if (!$code) { http_response_code(404); exit('Order not found.'); }
+require __DIR__ . '/db.php';
+$token = is_string($_GET['token'] ?? null) ? strtolower(trim($_GET['token'])) : '';
+if (!preg_match('/^[a-f0-9]{64}$/', $token)) {
+    http_response_code(404);
+    exit('Order not found.');
+}
 
-$s = $pdo->prepare("SELECT * FROM orders WHERE order_code=? LIMIT 1");
-$s->execute([$code]);
-$order = $s->fetch();
-if (!$order) { http_response_code(404); exit('Order not found.'); }
+try {
+    $s = $pdo->prepare('SELECT * FROM orders WHERE order_token=? LIMIT 1');
+    $s->execute([$token]);
+    $order = $s->fetch();
+    if (!$order) {
+        http_response_code(404);
+        exit('Order not found.');
+    }
 
-$i = $pdo->prepare("SELECT * FROM order_items WHERE order_id=? ORDER BY id");
-$i->execute([$order['id']]);
-$items = $i->fetchAll();
+    $i = $pdo->prepare('SELECT * FROM order_items WHERE order_id=? ORDER BY id');
+    $i->execute([$order['id']]);
+    $items = $i->fetchAll();
+} catch (Throwable $e) {
+    error_log('Boss Lady order page load failed.');
+    http_response_code(500);
+    exit('Order page temporarily unavailable.');
+}
 
 function naira($kobo){ return '₦'.number_format($kobo/100, 2); }
 $config = require __DIR__.'/config.php';
@@ -20,7 +32,7 @@ $waMsg = "Hello Boss Lady Perfumery, I am viewing order ".$order['order_code']."
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title><?=htmlspecialchars($order['order_code'])?> | Boss Lady Perfumery</title>
+<title><?=htmlspecialchars($order['order_code'], ENT_QUOTES, 'UTF-8')?> | Boss Lady Perfumery</title>
 <style>
 body{margin:0;background:#09070a;color:#f8f2eb;font-family:Arial,sans-serif}
 .wrap{max-width:720px;width:92%;margin:35px auto}.brand{text-align:center;color:#f0d18b;font:700 25px Georgia;letter-spacing:2px}.sub{text-align:center;color:#d9879b;font-size:11px;letter-spacing:4px;margin-top:4px}
@@ -34,28 +46,28 @@ h1,h2{font-family:Georgia}.id{font-size:24px;color:#f0d18b}.row{display:flex;jus
 <div class="wrap">
 <div class="brand">BOSS LADY</div><div class="sub">PERFUMERY</div>
 <div class="box">
-  <div class="muted">ORDER ID</div><div class="id"><?=htmlspecialchars($order['order_code'])?></div>
-  <p><span class="badge">Payment: <?=htmlspecialchars($order['payment_status'])?></span> <span class="badge">Order: <?=htmlspecialchars($order['order_status'])?></span></p>
+  <div class="muted">ORDER ID</div><div class="id"><?=htmlspecialchars($order['order_code'], ENT_QUOTES, 'UTF-8')?></div>
+  <p><span class="badge">Payment: <?=htmlspecialchars($order['payment_status'], ENT_QUOTES, 'UTF-8')?></span> <span class="badge">Order: <?=htmlspecialchars($order['order_status'], ENT_QUOTES, 'UTF-8')?></span></p>
 </div>
 <div class="box">
 <h2>Customer</h2>
-<div class="row"><span class="muted">Name</span><span><?=htmlspecialchars($order['customer_name'])?></span></div>
-<div class="row"><span class="muted">Phone</span><span><?=htmlspecialchars($order['phone'])?></span></div>
-<div class="row"><span class="muted">Delivery</span><span><?=nl2br(htmlspecialchars($order['address']))?></span></div>
+<div class="row"><span class="muted">Name</span><span><?=htmlspecialchars($order['customer_name'], ENT_QUOTES, 'UTF-8')?></span></div>
+<div class="row"><span class="muted">Phone</span><span><?=htmlspecialchars($order['phone'], ENT_QUOTES, 'UTF-8')?></span></div>
+<div class="row"><span class="muted">Delivery</span><span><?=nl2br(htmlspecialchars($order['address'], ENT_QUOTES, 'UTF-8'))?></span></div>
 </div>
 <div class="box">
 <h2>Items</h2>
 <?php foreach($items as $item): ?>
-<div class="row"><span><?=htmlspecialchars($item['product_name'])?> × <?=intval($item['quantity'])?></span><span><?=naira($item['unit_price_kobo']*$item['quantity'])?></span></div>
+<div class="row"><span><?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?> × <?=intval($item['quantity'])?></span><span><?=naira($item['unit_price_kobo']*$item['quantity'])?></span></div>
 <?php endforeach; ?>
 <div class="row total"><span>Total</span><span><?=naira($order['total_kobo'])?></span></div>
 <a class="btn" href="https://wa.me/<?=$config['whatsapp']?>?text=<?=rawurlencode($waMsg)?>">Chat on WhatsApp</a>
 </div>
 <div class="box">
 <h2>Order Information</h2>
-<div class="row"><span class="muted">Created</span><span><?=htmlspecialchars($order['created_at'])?></span></div>
-<div class="row"><span class="muted">Last updated</span><span><?=htmlspecialchars($order['updated_at'])?></span></div>
-<p class="notice">This page is intentionally public. Anyone who has the complete order link can view this order. Do not share the link publicly if the order contains information you want kept private.</p>
+<div class="row"><span class="muted">Created</span><span><?=htmlspecialchars($order['created_at'], ENT_QUOTES, 'UTF-8')?></span></div>
+<div class="row"><span class="muted">Last updated</span><span><?=htmlspecialchars($order['updated_at'], ENT_QUOTES, 'UTF-8')?></span></div>
+<p class="notice">This private order link contains delivery information. Do not share it publicly.</p>
 </div>
 </div>
 </body></html>

@@ -1,16 +1,13 @@
 <?php
-// Boss Lady Perfumery — configuration
-// IMPORTANT: keep your Paystack SECRET key on the server only.
+// Boss Lady Perfumery configuration. Set these values as server environment variables.
 return [
     'db' => [
-        'dsn' => 'mysql:host=localhost;dbname=boss_lady;charset=utf8mb4',
-        'user' => 'YOUR_DB_USER',
-        'pass' => 'YOUR_DB_PASSWORD',
+        'dsn' => getenv('BL_DB_DSN') ?: 'mysql:host=localhost;dbname=boss_lady;charset=utf8mb4',
+        'user' => getenv('BL_DB_USER') ?: '',
+        'pass' => getenv('BL_DB_PASSWORD') ?: '',
     ],
-    'site_url' => 'https://YOUR-DOMAIN.com',
-    'whatsapp' => '2349067956221',
-    'admin_user' => 'admin',
-    // Change this before going live.
-    // Generate a password hash with PHP password_hash(). Never put the plain password here.
-    'admin_password_hash' => '$2y$10$REPLACE_WITH_PASSWORD_HASH',
+    'site_url' => rtrim(getenv('BL_SITE_URL') ?: 'https://YOUR-DOMAIN.com', '/'),
+    'whatsapp' => preg_replace('/\D+/', '', getenv('BL_WHATSAPP') ?: '2349067956221'),
+    'admin_user' => getenv('BL_ADMIN_USER') ?: 'admin',
+    'admin_password_hash' => getenv('BL_ADMIN_PASSWORD_HASH') ?: '',
 ];
