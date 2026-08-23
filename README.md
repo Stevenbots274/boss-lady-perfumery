@@ -22,10 +22,11 @@ The storefront does not load the Paystack SDK or claim to accept online card pay
 ## Setup
 1. Create a Supabase project and open its SQL Editor.
 2. Run `schema.sql` in the SQL Editor.
-3. Set the server environment variables listed below.
-4. Deploy the files to Vercel with the included PHP runtime, or use PHP 8.1+ hosting with PDO PostgreSQL enabled.
-5. Add the real perfumes, prices and product images in the admin panel.
-6. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
+3. Run `storage.sql` to enable direct product image uploads from the admin workspace.
+4. Set the server environment variables listed below.
+5. Deploy the files to Vercel with the included PHP runtime, or use PHP 8.1+ hosting with PDO PostgreSQL enabled.
+6. Add the real perfumes, prices and product images in the admin panel.
+7. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
 
 For an existing installation, run `migration-security.sql` before deploying the updated PHP files. Configure the Apache virtual host with the real canonical `ServerName`; non-Apache servers must add equivalent HTTPS, HSTS, dot-file, and source-file blocking rules.
 
@@ -67,4 +68,4 @@ No customer login is required. Anyone who has the complete private link can view
 3. Disable public sign-ups after creating that user.
 4. Add `BL_SUPABASE_URL`, `BL_SUPABASE_ANON_KEY`, and `BL_ADMIN_EMAIL` to Vercel.
 
-The PHP server verifies the Supabase access token through Supabase's `/auth/v1/user` endpoint. Never put a Supabase service-role key in the browser, repository, or Vercel client-side variables.
+The PHP server verifies the Supabase access token through Supabase's `/auth/v1/user` endpoint. Product uploads use the authenticated user's token and the public `product-images` bucket; the app never exposes a service-role key. Never put a Supabase service-role key in the browser, repository, or Vercel client-side variables.
