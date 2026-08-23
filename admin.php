@@ -1,6 +1,5 @@
 <?php
 $config = require __DIR__ . '/config.php';
-require __DIR__ . '/db.php';
 
 function set_auth_cookie($name, $value, $expires)
 {
@@ -51,6 +50,31 @@ function supabase_user($accessToken, $config)
     return is_array($user) ? $user : null;
 }
 
+function supabase_update_password($accessToken, $password, $config)
+{
+    if (!function_exists('curl_init') || !$config['supabase_url'] || !$config['supabase_anon_key']) {
+        return false;
+    }
+    $curl = curl_init($config['supabase_url'] . '/auth/v1/user');
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST => 'PUT',
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_POSTFIELDS => json_encode(['password' => $password]),
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',
+            'Content-Type: application/json',
+            'apikey: ' . $config['supabase_anon_key'],
+            'Authorization: Bearer ' . $accessToken,
+        ],
+    ]);
+    $body = curl_exec($curl);
+    $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    curl_close($curl);
+    return $body !== false && $status === 200;
+}
+
 $csrfCookie = $_COOKIE['__Host-bl_admin_csrf'] ?? null;
 $csrfValid = is_string($csrfCookie) && preg_match('/^[a-f0-9]{64}$/', $csrfCookie);
 $csrfToken = $csrfValid ? $csrfCookie : bin2hex(random_bytes(32));
@@ -91,6 +115,21 @@ if (!$adminAuthorized) {
     }
     ?>
 <!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg"><title>Boss Lady Admin</title><style>body{font-family:Arial;background:#09070a;color:#fff;max-width:420px;margin:10vh auto;padding:20px}input{width:100%;padding:13px;margin:7px 0 12px;background:#151116;color:#fff;border:1px solid #ffffff22;border-radius:8px}button{padding:13px 18px;background:#e1b866;border:0;border-radius:8px;font-weight:bold}.error{color:#ff9eb3;font-size:13px}</style><h1>Boss Lady Admin</h1><?php if ($loginError): ?><p class="error"><?=h($loginError)?></p><?php endif; ?><form id="supabaseLogin" method="post" data-supabase-url="<?=h($config['supabase_url'])?>" data-supabase-anon-key="<?=h($config['supabase_anon_key'])?>"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><input name="email" type="email" placeholder="Admin email" autocomplete="username" required><input name="password" type="password" placeholder="Password" autocomplete="current-password" required><button name="login" value="1">Sign in</button></form><script>document.getElementById('supabaseLogin').addEventListener('submit',async function(event){event.preventDefault();const form=event.currentTarget;const button=form.querySelector('button');button.disabled=true;try{const auth=await fetch(form.dataset.supabaseUrl+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':form.dataset.supabaseAnonKey},body:JSON.stringify({email:form.email.value,password:form.password.value})});const data=await auth.json();if(!auth.ok||!data.access_token)throw new Error('sign-in failed');const response=await fetch('admin.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'text/html'},body:new URLSearchParams({csrf:form.csrf.value,login:'1',supabase_token:data.access_token})});if(!response.ok)throw new Error('authorization failed');window.location.reload()}catch(_){button.disabled=false;alert('Sign-in failed. Check your details or ask the administrator to authorize this account.')}});</script><?php exit;
+    exit;
+}
+
+require __DIR__ . '/db.php';
+
+$passwordNotice = '';
+if (isset($_POST['change_password'])) {
+    $newPassword = is_string($_POST['new_password'] ?? null) ? $_POST['new_password'] : '';
+    if (strlen($newPassword) < 8 || strlen($newPassword) > 72) {
+        $passwordNotice = 'Password must be between 8 and 72 characters.';
+    } elseif (supabase_update_password($adminToken, $newPassword, $config)) {
+        $passwordNotice = 'Password updated.';
+    } else {
+        $passwordNotice = 'The password could not be updated right now.';
+    }
 }
 
 $notices = [
@@ -229,7 +268,8 @@ try {
 }
 ?><!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg"><title>Boss Lady Admin</title>
 <style>body{margin:0;background:#09070a;color:#eee;font-family:Arial}.wrap{max-width:1050px;margin:auto;padding:24px}.box{background:#151116;border:1px solid #e1b86633;border-radius:14px;padding:20px;margin:18px 0}input,textarea,select{padding:11px;background:#0d0a0e;color:#fff;border:1px solid #ffffff22;border-radius:7px;margin:5px;width:calc(100% - 22px)}button{padding:11px 16px;border:0;border-radius:7px;background:#e1b866;font-weight:bold}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid #ffffff15;text-align:left;font-size:13px}.notice{color:#f0d18b;font-size:13px}.danger{background:transparent;color:#e1b866;padding:0}</style>
-<div class="wrap"><h1>Boss Lady Perfumery — Admin</h1><?php if ($notice): ?><p class="notice"><?=h($notice)?></p><?php endif; ?><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><button name="logout" value="1">Log out</button></form>
+ <div class="wrap"><h1>Boss Lady Perfumery — Admin</h1><?php if ($notice): ?><p class="notice"><?=h($notice)?></p><?php endif; ?><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><button name="logout" value="1">Log out</button></form>
+ <div class="box"><h2>Settings</h2><?php if ($passwordNotice): ?><p class="notice"><?=h($passwordNotice)?></p><?php endif; ?><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><input name="new_password" type="password" minlength="8" maxlength="72" placeholder="New password" autocomplete="new-password" required><button name="change_password" value="1">Change Password</button></form></div>
 <div class="box"><h2>Add Product</h2><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><input name="name" placeholder="Product name" maxlength="160" required><textarea name="description" maxlength="5000" placeholder="Description"></textarea><input name="price" type="number" min="0.01" step=".01" placeholder="Price in NGN" required><input name="image_url" type="url" maxlength="500" placeholder="HTTPS product image URL"><input name="stock" type="number" min="0" placeholder="Stock (blank = unlimited)"><button name="save" value="1">Publish Product</button></form></div>
 <div class="box"><h2>Products</h2><table><tr><th>Name</th><th>Price</th><th>Stock</th><th></th></tr><?php foreach ($products as $p): ?><tr><td><?=h($p['name'])?></td><td>₦<?=number_format($p['price_kobo'] / 100, 2)?></td><td><?=$p['stock'] === null ? 'Unlimited' : (int) $p['stock']?></td><td><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><button class="danger" name="del" value="<?= (int) $p['id'] ?>">Hide</button></form></td></tr><?php endforeach; ?></table></div>
 <div class="box"><h2>Orders</h2><table><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Private page</th><th>Status</th></tr><?php foreach ($orders as $o): ?><tr><td><?=h($o['order_code'])?></td><td><?=h($o['customer_name'])?></td><td>₦<?=number_format($o['total_kobo'] / 100, 2)?></td><td><?=h($o['payment_status'])?></td><td><a style="color:#e1b866" href="<?=h(rtrim($config['site_url'], '/') . '/order/' . $o['order_token'])?>" target="_blank" rel="noreferrer">View</a></td><td><form method="post"><input type="hidden" name="csrf" value="<?=h($csrfToken)?>"><input type="hidden" name="id" value="<?= (int) $o['id'] ?>"><select name="status" onchange="this.form.submit()"><?php foreach ($allowedStatuses as $status): ?><option value="<?=h($status)?>"<?=$o['order_status'] === $status ? ' selected' : ''?>><?=h($status)?></option><?php endforeach; ?></select></form></td></tr><?php endforeach; ?></table></div>

@@ -41,7 +41,7 @@ Supabase provides the PostgreSQL database and Auth used by this version.
 - `BL_WHATSAPP` — WhatsApp number with country code and no punctuation
 - `BL_SUPABASE_URL` — your Supabase project URL, such as `https://project-id.supabase.co`
 - `BL_SUPABASE_ANON_KEY` — Supabase publishable/anon key; this may be sent to the browser
-- `BL_ADMIN_EMAIL` — the one Supabase Auth email allowed to access `/admin.php`
+- `BL_ADMIN_EMAIL` — the one Supabase Auth email allowed to access `/admin.php`; this deployment defaults to `bosslady@bossladyperfumery.com.ng` when omitted
 
 An empty stock field means unlimited stock. A numeric stock value is reserved atomically when an order is created and released once if the order is cancelled.
 
@@ -58,6 +58,7 @@ No customer login is required. Anyone who has the complete private link can view
 - The Supabase access token is stored in a Secure, HttpOnly, SameSite cookie and checked on every request.
 - The browser sends passwords only to the configured Supabase project, never to this PHP app.
 - All admin state-changing actions use POST and a CSRF token.
+- The admin Settings section can change the Supabase Auth password after sign-in.
 - Do not share admin credentials.
 
 ### Supabase Auth setup

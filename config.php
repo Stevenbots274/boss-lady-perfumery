@@ -29,5 +29,5 @@ return [
     'whatsapp' => preg_replace('/\D+/', '', getenv('BL_WHATSAPP') ?: '2349067956221'),
     'supabase_url' => $validSupabaseUrl ? $supabaseUrl : '',
     'supabase_anon_key' => $publicSupabaseKey ? $supabaseKey : '',
-    'admin_email' => strtolower(trim(getenv('BL_ADMIN_EMAIL') ?: '')),
+    'admin_email' => strtolower(trim(getenv('BL_ADMIN_EMAIL') ?: 'bosslady@bossladyperfumery.com.ng')),
 ];
