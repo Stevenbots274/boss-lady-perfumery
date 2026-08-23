@@ -42,7 +42,6 @@ function supabase_user($accessToken, $config)
     ]);
     $body = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
     if ($body === false || $status !== 200) {
         return null;
     }
@@ -71,7 +70,6 @@ function supabase_update_password($accessToken, $password, $config)
     ]);
     $body = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
     return $body !== false && $status === 200;
 }
 
