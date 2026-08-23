@@ -19,10 +19,18 @@ if (!$publicSupabaseKey && substr_count($supabaseKey, '.') === 2) {
     $payload = json_decode(base64_decode($encodedPayload), true);
     $publicSupabaseKey = is_array($payload) && ($payload['role'] ?? '') === 'anon';
 }
+$dbDsn = getenv('BL_DB_DSN') ?: 'pgsql:host=aws-0-eu-west-1.pooler.supabase.com;port=5432;dbname=postgres;sslmode=require';
+$dbUser = getenv('BL_DB_USER') ?: '';
+if (preg_match('/^pgsql:host=db\.([a-z0-9-]+)\.supabase\.co(?:;|$)/i', $dbDsn, $dbHostMatch)) {
+    $dbDsn = preg_replace('/host=db\.[^;]+/i', 'host=aws-0-eu-west-1.pooler.supabase.com', $dbDsn, 1);
+    if (strcasecmp($dbUser, 'postgres') === 0) {
+        $dbUser = 'postgres.' . $dbHostMatch[1];
+    }
+}
 return [
     'db' => [
-        'dsn' => getenv('BL_DB_DSN') ?: 'pgsql:host=localhost;port=5432;dbname=postgres;sslmode=require',
-        'user' => getenv('BL_DB_USER') ?: '',
+        'dsn' => $dbDsn,
+        'user' => $dbUser,
         'pass' => getenv('BL_DB_PASSWORD') ?: '',
     ],
     'site_url' => rtrim(getenv('BL_SITE_URL') ?: 'https://YOUR-DOMAIN.com', '/'),
