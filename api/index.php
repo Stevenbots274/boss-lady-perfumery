@@ -13,8 +13,33 @@ switch ($route) {
     case '/index.php':
         require __DIR__ . '/../index.php';
         break;
+    case '/admin':
     case '/admin.php':
         require __DIR__ . '/../admin.php';
+        break;
+    case '/admin/products':
+        require __DIR__ . '/../admin-products.php';
+        break;
+    case '/admin/orders':
+        require __DIR__ . '/../admin-orders.php';
+        break;
+    case '/admin/settings':
+        require __DIR__ . '/../admin-settings.php';
+        break;
+    case '/shop':
+        require __DIR__ . '/../shop.php';
+        break;
+    case '/about':
+        require __DIR__ . '/../about.php';
+        break;
+    case '/track':
+        require __DIR__ . '/../track.php';
+        break;
+    case '/privacy':
+        require __DIR__ . '/../privacy.php';
+        break;
+    case '/terms':
+        require __DIR__ . '/../terms.php';
         break;
     case '/order.php':
         require __DIR__ . '/../order.php';
