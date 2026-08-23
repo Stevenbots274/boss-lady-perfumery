@@ -28,6 +28,10 @@ try {
     ]);
 } catch (Throwable $e) {
     error_log('Boss Lady database connection failed.');
+    if (($_GET['dbcheck'] ?? '') === '1') {
+        $diagnostic = preg_replace('/[\r\n]+/', ' ', $e->getMessage());
+        header('X-Database-Diagnostic: ' . substr($diagnostic, 0, 240));
+    }
     http_response_code(500);
     if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false) {
         header('Content-Type: application/json; charset=utf-8');
