@@ -21,10 +21,10 @@ function site_start($config, $title, $description, $active = '')
 function site_end($config)
 {
     $supportUrl = site_support_url($config);
-    cookie_notice();
     ?>
 </main>
 <footer class="site-footer"><div class="site-wrap"><div class="site-footer-grid"><div><a class="site-brand" href="/"><span class="site-brand-mark">BL</span><span><strong style="color:#fff">BOSS LADY</strong><small style="color:#a99b9c">PERFUMERY</small></span></a><p>Premium fragrance moments for women who own the room. Scent of confidence, made for a boss.</p></div><div class="site-footer-links"><a href="/shop">Shop</a><a href="/about">About</a><a href="/track">Track order</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms &amp; Conditions</a><a href="<?=$supportUrl?>">WhatsApp</a></div></div><div class="site-footer-bottom"><span>© <?=date('Y')?> Boss Lady Perfumery</span><span>WhatsApp 0906 795 6221 · Call 0703 234 8639</span></div></div></footer>
+<?php cookie_notice(); ?>
 <script>
 const siteCart=()=>{try{const value=JSON.parse(localStorage.getItem('bl_cart')||'[]');return Array.isArray(value)?value:[]}catch(_){return[]}};const bag=document.getElementById('siteBagCount');if(bag)bag.textContent=siteCart().reduce((sum,item)=>sum+(Number(item.qty)||0),0);const observer='IntersectionObserver' in window?new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting)entry.target.classList.add('visible')}),{threshold:.12}):null;document.querySelectorAll('.reveal').forEach(el=>observer?observer.observe(el):el.classList.add('visible'));
 </script></body></html>
