@@ -12,7 +12,7 @@ Shop → Add to cart → Enter delivery details → Get Order ID → Continue to
 - WhatsApp checkout
 - WhatsApp ordering directly from every product
 - Admin page for adding/hiding products and updating order status
-- MySQL database
+- Supabase PostgreSQL database
 
 ## Payment
 There is **no Paystack integration** in this version. Payment is handled manually through WhatsApp after an order is created.
@@ -20,22 +20,23 @@ There is **no Paystack integration** in this version. Payment is handled manuall
 The storefront does not load the Paystack SDK or claim to accept online card payments.
 
 ## Setup
-1. Create a MySQL database and import `schema.sql`.
-2. Set the server environment variables listed below.
-3. Upload the files to PHP 8.1+ hosting with PDO MySQL enabled and MySQL 8.0.16+ (or MariaDB with enforced checks).
-4. Add the real perfumes, prices and product images in the admin panel.
-5. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
+1. Create a Supabase project and open its SQL Editor.
+2. Run `schema.sql` in the SQL Editor.
+3. Set the server environment variables listed below.
+4. Deploy the files to Vercel with the included PHP runtime, or use PHP 8.1+ hosting with PDO PostgreSQL enabled.
+5. Add the real perfumes, prices and product images in the admin panel.
+6. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
 
 For an existing installation, run `migration-security.sql` before deploying the updated PHP files. Configure the Apache virtual host with the real canonical `ServerName`; non-Apache servers must add equivalent HTTPS, HSTS, dot-file, and source-file blocking rules.
 
 ### Vercel
-The included `vercel.json` uses the `vercel-php` community runtime and routes the application through `api/index.php`. Vercel does not provide the MySQL database for this app: create a managed MySQL database with a provider such as Railway, PlanetScale, Aiven, or DigitalOcean, import `schema.sql`, then add the `BL_*` environment variables under Vercel → Project Settings → Environment Variables. Vercel's filesystem is ephemeral, so do not use it for database storage.
+The included `vercel.json` uses the `vercel-php` community runtime and routes the application through `api/index.php`. The app uses Supabase PostgreSQL for products, orders, and rate limits. Add the `BL_*` environment variables under Vercel → Project Settings → Environment Variables. Vercel's filesystem is ephemeral, so do not use it for database storage.
 
-Supabase provides Postgres, not MySQL. In this version Supabase is used for admin identity while the store data remains in MySQL. If you want Supabase to store the products and orders too, the schema and PHP database layer must be migrated to Postgres separately.
+Supabase provides the PostgreSQL database and Auth used by this version.
 
 ### Environment variables
-- `BL_DB_DSN` — for example `mysql:host=localhost;dbname=boss_lady;charset=utf8mb4`
-- `BL_DB_USER` and `BL_DB_PASSWORD` — a least-privilege MySQL account
+- `BL_DB_DSN` — `pgsql:host=db.project-ref.supabase.co;port=5432;dbname=postgres;sslmode=require`
+- `BL_DB_USER` and `BL_DB_PASSWORD` — the Supabase database account and password
 - `BL_SITE_URL` — the HTTPS site URL, without a trailing slash
 - `BL_WHATSAPP` — WhatsApp number with country code and no punctuation
 - `BL_SUPABASE_URL` — your Supabase project URL, such as `https://project-id.supabase.co`

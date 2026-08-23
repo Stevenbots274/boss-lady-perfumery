@@ -21,7 +21,7 @@ if (!$publicSupabaseKey && substr_count($supabaseKey, '.') === 2) {
 }
 return [
     'db' => [
-        'dsn' => getenv('BL_DB_DSN') ?: 'mysql:host=localhost;dbname=boss_lady;charset=utf8mb4',
+        'dsn' => getenv('BL_DB_DSN') ?: 'pgsql:host=localhost;port=5432;dbname=postgres;sslmode=require',
         'user' => getenv('BL_DB_USER') ?: '',
         'pass' => getenv('BL_DB_PASSWORD') ?: '',
     ],

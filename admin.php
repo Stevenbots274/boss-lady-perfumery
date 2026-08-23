@@ -145,7 +145,7 @@ if (isset($_POST['del'])) {
         $notice = 'Invalid product.';
     } else {
         try {
-            $s = $pdo->prepare('UPDATE products SET active=0 WHERE id=?');
+            $s = $pdo->prepare('UPDATE products SET active=FALSE WHERE id=?');
             $s->execute([$id]);
             header('Location: admin.php?notice=product-hidden');
             exit;
@@ -196,9 +196,9 @@ if (isset($_POST['status'])) {
                         $updateProduct->execute([$newStock, (int) $item['product_id']]);
                     }
                 }
-                $s = $pdo->prepare('UPDATE orders SET order_status=?,stock_released_at=NOW() WHERE id=?');
+                $s = $pdo->prepare('UPDATE orders SET order_status=?,stock_released_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?');
             } else {
-                $s = $pdo->prepare('UPDATE orders SET order_status=? WHERE id=?');
+                $s = $pdo->prepare('UPDATE orders SET order_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?');
             }
             $s->execute([$status, $id]);
             $pdo->commit();

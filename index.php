@@ -2,7 +2,7 @@
 $config = require __DIR__ . '/config.php';
 require __DIR__ . '/db.php';
 try {
-    $products = $pdo->query('SELECT * FROM products WHERE active=1 ORDER BY id DESC')->fetchAll();
+    $products = $pdo->query('SELECT * FROM products WHERE active=TRUE ORDER BY id DESC')->fetchAll();
 } catch (Throwable $e) {
     error_log('Boss Lady product load failed.');
     http_response_code(500);

@@ -85,7 +85,7 @@ function order_rate_allowed($pdo, $key)
     try {
         $rateKey = hash('sha256', $key);
         $pdo->beginTransaction();
-        $insert = $pdo->prepare('INSERT IGNORE INTO rate_limits(rate_key,window_started,request_count) VALUES(?,NOW(),0)');
+        $insert = $pdo->prepare('INSERT INTO rate_limits(rate_key,window_started,request_count) VALUES(?,CURRENT_TIMESTAMP,0) ON CONFLICT (rate_key) DO NOTHING');
         $insert->execute([$rateKey]);
         $select = $pdo->prepare('SELECT window_started,request_count FROM rate_limits WHERE rate_key=? FOR UPDATE');
         $select->execute([$rateKey]);
@@ -145,7 +145,7 @@ $total = 0;
 $clean = [];
 try {
     $pdo->beginTransaction();
-    $stmt = $pdo->prepare('SELECT id,name,price_kobo,stock FROM products WHERE id=? AND active=1 LIMIT 1 FOR UPDATE');
+    $stmt = $pdo->prepare('SELECT id,name,price_kobo,stock FROM products WHERE id=? AND active=TRUE LIMIT 1 FOR UPDATE');
     $updateStock = $pdo->prepare('UPDATE products SET stock=? WHERE id=?');
 
     foreach ($quantities as $id => $qty) {
@@ -178,9 +178,9 @@ try {
 
     $code = 'BL-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(8)));
     $token = bin2hex(random_bytes(32));
-    $ins = $pdo->prepare('INSERT INTO orders(order_code,order_token,customer_name,email,phone,address,total_kobo,payment_status,order_status) VALUES(?,?,?,?,?,?,?,?,?)');
+    $ins = $pdo->prepare('INSERT INTO orders(order_code,order_token,customer_name,email,phone,address,total_kobo,payment_status,order_status) VALUES(?,?,?,?,?,?,?,?,?) RETURNING id');
     $ins->execute([$code, $token, $name, $email, $phone, $address, $total, 'awaiting_whatsapp', 'new']);
-    $orderId = (int) $pdo->lastInsertId();
+    $orderId = (int) $ins->fetchColumn();
 
     $ii = $pdo->prepare('INSERT INTO order_items(order_id,product_id,product_name,unit_price_kobo,quantity) VALUES(?,?,?,?,?)');
     foreach ($clean as $item) {

@@ -1,15 +1,17 @@
--- Run this once on an existing database before deploying the updated PHP files.
+-- Run this once on an existing Supabase PostgreSQL database before deploying the updated PHP files.
 -- Existing order links using the old order code must be replaced with new token links.
-ALTER TABLE orders ADD COLUMN order_token CHAR(64) NULL AFTER order_code;
-UPDATE orders SET order_token = LOWER(HEX(RANDOM_BYTES(32))) WHERE order_token IS NULL;
-ALTER TABLE orders MODIFY order_token CHAR(64) NOT NULL;
-ALTER TABLE orders ADD UNIQUE KEY uq_orders_order_token (order_token);
-ALTER TABLE orders ADD COLUMN stock_released_at TIMESTAMP NULL DEFAULT NULL AFTER order_status;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_token CHAR(64);
+UPDATE orders SET order_token = encode(gen_random_bytes(32), 'hex') WHERE order_token IS NULL;
+ALTER TABLE orders ALTER COLUMN order_token SET NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_order_token ON orders(order_token);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_released_at TIMESTAMP NULL DEFAULT NULL;
 UPDATE orders SET stock_released_at = CURRENT_TIMESTAMP WHERE order_status = 'cancelled' AND stock_released_at IS NULL;
-ALTER TABLE products MODIFY stock INT NULL DEFAULT NULL;
+ALTER TABLE products ALTER COLUMN stock DROP NOT NULL;
+ALTER TABLE products ALTER COLUMN stock DROP DEFAULT;
 ALTER TABLE order_items ADD CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT;
 CREATE TABLE IF NOT EXISTS rate_limits (
   rate_key CHAR(64) PRIMARY KEY,
-  window_started DATETIME NOT NULL,
-  request_count INT UNSIGNED NOT NULL DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  window_started TIMESTAMP NOT NULL,
+  request_count INTEGER NOT NULL DEFAULT 0
+);
