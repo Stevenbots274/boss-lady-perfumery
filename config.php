@@ -21,6 +21,12 @@ if (!$publicSupabaseKey && substr_count($supabaseKey, '.') === 2) {
 }
 $dbDsn = trim(getenv('BL_DB_DSN') ?: 'pgsql:host=aws-1-eu-west-1.pooler.supabase.com;port=5432;dbname=postgres;sslmode=require');
 $dbUser = getenv('BL_DB_USER') ?: '';
+if (preg_match('/^pgsql:host=db\.([a-z0-9-]+)\.supabase\.co(?:;|$)/i', $dbDsn, $dbHostMatch)) {
+    $dbDsn = preg_replace('/host=db\.[^;]+/i', 'host=aws-1-eu-west-1.pooler.supabase.com', $dbDsn, 1);
+    if (strcasecmp($dbUser, 'postgres') === 0) {
+        $dbUser = 'postgres.' . $dbHostMatch[1];
+    }
+}
 $adminEmail = strtolower(trim(getenv('BL_ADMIN_EMAIL') ?: ''));
 return [
     'db' => [
