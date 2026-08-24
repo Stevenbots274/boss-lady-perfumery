@@ -6,6 +6,7 @@ CREATE TABLE products (
   image_url VARCHAR(500),
   stock INTEGER NULL DEFAULT NULL,
   active BOOLEAN NOT NULL DEFAULT TRUE,
+  archived_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CHECK (price_kobo > 0),
   CHECK (stock IS NULL OR stock >= 0)

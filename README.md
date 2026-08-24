@@ -13,7 +13,7 @@ Shop → Add to cart → Enter delivery details → Get Order ID → Continue to
 - Order tracking page
 - WhatsApp checkout
 - WhatsApp ordering directly from every product
-- Admin workspace for products, orders, payment status, and settings
+- Admin workspace for products, orders, payment status, insights, archive, and settings
 - Supabase PostgreSQL database
 
 ## Payment
@@ -25,12 +25,13 @@ The storefront does not load the Paystack SDK or claim to accept online card pay
 1. Create a Supabase project and open its SQL Editor.
 2. Run `schema.sql` in the SQL Editor.
 3. Run `storage.sql` to enable direct product image uploads from the admin workspace.
-4. Set the server environment variables listed below.
-5. Deploy the files to Vercel with the included PHP runtime, or use PHP 8.1+ hosting with PDO PostgreSQL enabled.
-6. Add the real perfumes, prices and product images in the admin panel.
-7. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
+4. For an existing database, run `migration-product-lifecycle.sql` to enable permanent product archives.
+5. Set the server environment variables listed below.
+6. Deploy the files to Vercel with the included PHP runtime, or use PHP 8.1+ hosting with PDO PostgreSQL enabled.
+7. Add the real perfumes, prices and product images in the admin panel.
+8. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
 
-For an existing installation, run `migration-security.sql` before deploying the updated PHP files. Configure the Apache virtual host with the real canonical `ServerName`; non-Apache servers must add equivalent HTTPS, HSTS, dot-file, and source-file blocking rules.
+For an existing installation, run `migration-security.sql` and `migration-product-lifecycle.sql` before deploying the updated PHP files. Configure the Apache virtual host with the real canonical `ServerName`; non-Apache servers must add equivalent HTTPS, HSTS, dot-file, and source-file blocking rules.
 
 ### Vercel
 The included `vercel.json` uses the `vercel-php` community runtime and routes the application through `api/index.php`. The app uses Supabase PostgreSQL for products, orders, and rate limits. Add the `BL_*` environment variables under Vercel → Project Settings → Environment Variables. Vercel's filesystem is ephemeral, so do not use it for database storage.

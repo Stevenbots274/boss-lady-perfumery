@@ -86,7 +86,22 @@ if (isset($_POST['logout'])) {
 }
 require __DIR__ . '/db.php';
 
-$notices = ['product-saved' => 'Product saved.', 'product-hidden' => 'Product hidden.', 'order-updated' => 'Order updated.'];
+try {
+    $pdo->exec('ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_products_archived_at ON products(archived_at)');
+} catch (Throwable $e) {
+    error_log('Boss Lady product lifecycle setup failed.');
+    http_response_code(503);
+    exit('Product archive tools are temporarily unavailable.');
+}
+
+function product_state($product)
+{
+    if (!empty($product['archived_at'])) return 'archived';
+    return !empty($product['active']) ? 'live' : 'hidden';
+}
+
+$notices = ['product-saved' => 'Product saved.', 'product-hidden' => 'Product moved to Hidden.', 'product-restored' => 'Product moved to Live.', 'product-archived' => 'Product permanently archived.', 'order-updated' => 'Order updated.'];
 $notice = $notices[$_GET['notice'] ?? ''] ?? '';
 $passwordNotice = '';
 $allowedStatuses = ['new', 'processing', 'ready', 'shipped', 'delivered', 'cancelled'];
@@ -138,7 +153,19 @@ if (isset($_POST['save'])) {
 
 if (isset($_POST['del'])) {
     $id = filter_var($_POST['del'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-    if ($id !== false) try { $s = $pdo->prepare('UPDATE products SET active=FALSE WHERE id=?'); $s->execute([$id]); admin_redirect('product-hidden', '#products'); } catch (Throwable $e) { $notice = 'The product could not be updated right now.'; }
+    if ($id !== false) try { $s = $pdo->prepare('UPDATE products SET active=FALSE WHERE id=? AND archived_at IS NULL'); $s->execute([$id]); admin_redirect('product-hidden', '#products'); } catch (Throwable $e) { $notice = 'The product could not be updated right now.'; }
+    else $notice = 'Invalid product.';
+}
+
+if (isset($_POST['restore'])) {
+    $id = filter_var($_POST['restore'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($id !== false) try { $s = $pdo->prepare('UPDATE products SET active=TRUE WHERE id=? AND archived_at IS NULL'); $s->execute([$id]); admin_redirect('product-restored', '#products'); } catch (Throwable $e) { $notice = 'The product could not be moved to Live right now.'; }
+    else $notice = 'Invalid product.';
+}
+
+if (isset($_POST['archive'])) {
+    $id = filter_var($_POST['archive'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($id !== false) try { $s = $pdo->prepare('UPDATE products SET active=FALSE,archived_at=CURRENT_TIMESTAMP WHERE id=? AND archived_at IS NULL'); $s->execute([$id]); admin_redirect('product-archived', '#products'); } catch (Throwable $e) { $notice = 'The product could not be archived right now.'; }
     else $notice = 'Invalid product.';
 }
 
@@ -166,6 +193,11 @@ catch (Throwable $e) { error_log('Boss Lady admin data load failed.'); http_resp
 $editId = filter_var($_GET['edit'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 0;
 $editingProduct = null; foreach ($products as $product) if ((int) $product['id'] === $editId) $editingProduct = $product;
 $activeProducts = count(array_filter($products, fn($p) => (bool) $p['active']));
+$hiddenProducts = count(array_filter($products, fn($p) => product_state($p) === 'hidden'));
+$archivedProducts = count(array_filter($products, fn($p) => product_state($p) === 'archived'));
+$stockAlerts = count(array_filter($products, fn($p) => product_state($p) !== 'archived' && $p['stock'] !== null && (int) $p['stock'] <= 3));
 $openOrders = count(array_filter($orders, fn($o) => !in_array($o['order_status'], ['delivered', 'cancelled'], true)));
 $awaitingPayment = count(array_filter($orders, fn($o) => $o['payment_status'] === 'awaiting_whatsapp'));
 $paidTotal = array_reduce($orders, fn($sum, $o) => $sum + ($o['payment_status'] === 'paid' ? (int) $o['total_kobo'] : 0), 0);
+$productView = in_array($_GET['view'] ?? 'all', ['all', 'live', 'hidden', 'archived'], true) ? $_GET['view'] : 'all';
+$visibleProducts = array_values(array_filter($products, fn($product) => $productView === 'all' || product_state($product) === $productView));
