@@ -6,7 +6,7 @@ RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
 
 Options -Indexes
-<FilesMatch "^(config|db|admin_common|admin_layout|site_layout|cookie_notice)\.php$|^(schema|storage|migration-security|migration-product-lifecycle|README)\.(sql|md)$|^\.htaccess$">
+<FilesMatch "^(config|db|admin_common|admin_layout|site_layout|cookie_notice)\.php$|^(schema|storage|migration-security|migration-product-lifecycle|migration-testimonials|README)\.(sql|md)$|^\.htaccess$">
     Require all denied
 </FilesMatch>
 <FilesMatch "^\.">
@@ -26,6 +26,8 @@ RewriteRule ^track/?$ track.php [L]
 RewriteRule ^privacy/?$ privacy.php [L]
 RewriteRule ^terms/?$ terms.php [L]
 RewriteRule ^account/?$ account.php [L]
+RewriteRule ^testimonial/?$ testimonial.php [L]
+RewriteRule ^testimonials/?$ testimonials.php [L]
 RewriteRule ^404/?$ not-found.php [L]
 RewriteRule ^admin/?$ admin.php [L]
 RewriteRule ^admin/products/?$ admin-products.php [L]

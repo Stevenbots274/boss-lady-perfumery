@@ -34,6 +34,9 @@ switch ($route) {
     case '/admin/insights':
         require __DIR__ . '/../admin-insights.php';
         break;
+    case '/admin/testimonials':
+        require __DIR__ . '/../admin-testimonials.php';
+        break;
     case '/admin/settings':
         require __DIR__ . '/../admin-settings.php';
         break;
@@ -61,6 +64,12 @@ switch ($route) {
     case '/account':
         require __DIR__ . '/../account.php';
         break;
+    case '/testimonial':
+        require __DIR__ . '/../testimonial.php';
+        break;
+    case '/testimonials':
+        require __DIR__ . '/../testimonials.php';
+        break;
     case '/404':
         require __DIR__ . '/../not-found.php';
         break;
@@ -75,6 +84,9 @@ switch ($route) {
         break;
     case '/api/customer-auth.php':
         require __DIR__ . '/customer-auth.php';
+        break;
+    case '/api/testimonials.php':
+        require __DIR__ . '/testimonials.php';
         break;
     default:
         require __DIR__ . '/../not-found.php';

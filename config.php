@@ -28,6 +28,18 @@ if (preg_match('/^pgsql:host=db\.([a-z0-9-]+)\.supabase\.co(?:;|$)/i', $dbDsn, $
     }
 }
 $adminEmail = strtolower(trim(getenv('BL_ADMIN_EMAIL') ?: ''));
+$imagekitUrlEndpoint = rtrim(trim(getenv('BL_IMAGEKIT_URL_ENDPOINT') ?: ''), '/');
+$imagekitParts = parse_url($imagekitUrlEndpoint);
+$validImagekitUrl = is_array($imagekitParts)
+    && strtolower($imagekitParts['scheme'] ?? '') === 'https'
+    && preg_match('/^[A-Za-z0-9.-]+$/', $imagekitParts['host'] ?? '')
+    && !isset($imagekitParts['port'])
+    && !isset($imagekitParts['query'])
+    && !isset($imagekitParts['fragment'])
+    && !isset($imagekitParts['user'])
+    && !isset($imagekitParts['pass']);
+$imagekitPublicKey = trim(getenv('BL_IMAGEKIT_PUBLIC_KEY') ?: '');
+$imagekitPrivateKey = trim(getenv('BL_IMAGEKIT_PRIVATE_KEY') ?: '');
 return [
     'db' => [
         'dsn' => $dbDsn,
@@ -41,4 +53,7 @@ return [
     'supabase_url' => $validSupabaseUrl ? $supabaseUrl : '',
     'supabase_anon_key' => $publicSupabaseKey ? $supabaseKey : '',
     'admin_email' => $adminEmail,
+    'imagekit_url_endpoint' => $validImagekitUrl ? $imagekitUrlEndpoint : '',
+    'imagekit_public_key' => strlen($imagekitPublicKey) <= 255 ? $imagekitPublicKey : '',
+    'imagekit_private_key' => strlen($imagekitPrivateKey) <= 255 ? $imagekitPrivateKey : '',
 ];

@@ -14,6 +14,8 @@ Shop → Add to bag → Enter delivery details → Get your order ID → Continu
 - WhatsApp checkout
 - WhatsApp support from the catalogue and Scent Finder
 - Admin workspace for products, orders, payment status, insights, archive, and settings
+- Optional customer accounts with delivered-order testimonial submission and admin moderation
+- Public verified testimonial feed with product-specific review links
 - Supabase PostgreSQL database
 
 ## Payment
@@ -26,10 +28,12 @@ The storefront does not load the Paystack SDK or claim to accept online card pay
 2. Run `schema.sql` in the SQL Editor.
 3. Run `storage.sql` to enable direct product image uploads from the admin workspace.
 4. For an existing database, run `migration-product-lifecycle.sql` to enable permanent product archives.
-5. Set the server environment variables listed below.
-6. Deploy the files to Vercel with the included PHP runtime, or use PHP 8.1+ hosting with PDO PostgreSQL enabled.
-7. Add the real perfumes, prices and product images in the admin panel.
-8. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
+5. For testimonials, run `migration-testimonials.sql` after the existing `orders`, `order_items`, and `products` tables exist.
+6. Create an ImageKit account and use its URL endpoint, public key, and private key for testimonial media only.
+7. Set the server environment variables listed below.
+8. Deploy the files to Vercel with the included PHP runtime, or use PHP 8.1+ hosting with PDO PostgreSQL enabled.
+9. Add the real perfumes, prices and product images in the admin panel.
+10. Enable HTTPS. The included `.htaccess` redirects HTTP and blocks direct access to configuration and database files.
 
 For an existing installation, run `migration-security.sql` and `migration-product-lifecycle.sql` before deploying the updated PHP files. Configure the Apache virtual host with the real canonical `ServerName`; non-Apache servers must add equivalent HTTPS, HSTS, dot-file, and source-file blocking rules.
 
@@ -48,6 +52,9 @@ Supabase provides the PostgreSQL database and Auth used by this version. Auth su
 - `BL_SUPABASE_URL` — your Supabase project URL, such as `https://project-id.supabase.co`
 - `BL_SUPABASE_ANON_KEY` — Supabase publishable/anon key; this may be sent to the browser
 - `BL_ADMIN_EMAIL` — the one Supabase Auth email allowed to access `/admin`; required for admin access
+- `BL_IMAGEKIT_URL_ENDPOINT` — your ImageKit HTTPS URL endpoint, such as `https://ik.imagekit.io/your_imagekit_id`
+- `BL_IMAGEKIT_PUBLIC_KEY` — ImageKit public key used for direct browser uploads
+- `BL_IMAGEKIT_PRIVATE_KEY` — ImageKit private key used only by the PHP server for upload signing and media verification
 
 An empty stock field means unlimited stock. A numeric stock value is reserved atomically when an order is created. When the store is next used after 24 hours without confirmation, a new order is automatically cancelled and its stock is released. An administrator can cancel it sooner.
 
@@ -69,6 +76,11 @@ Customer accounts are optional. Customers can create an email/password account a
 - All admin state-changing actions use POST and a CSRF token.
 - The admin Settings section can change the Supabase Auth password after sign-in.
 - Do not share admin credentials.
+
+## Testimonials
+Customers sign in at `/account`, then can submit one testimonial for each order whose status is `delivered`. Submissions are stored as `pending` until approved at `/admin/testimonials`. The public `/testimonials` page and homepage show approved stories only; `/testimonials?product=ID` filters them to one product.
+
+Testimonial images and short videos upload directly from the browser to ImageKit. The PHP server signs uploads, verifies the ImageKit file details, and stores only the verified media URL and file ID in PostgreSQL. Product images continue using the existing Supabase Storage flow.
 
 ### Supabase Auth setup
 1. Create a Supabase project and enable the Email provider under Authentication → Providers.

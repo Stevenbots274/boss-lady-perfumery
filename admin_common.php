@@ -115,7 +115,7 @@ function admin_order_status_label($value)
     return ['new' => 'New', 'processing' => 'Processing', 'ready' => 'Ready for delivery', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled'][$value] ?? 'Updated';
 }
 
-$notices = ['product-saved' => 'Product saved.', 'product-hidden' => 'Product moved to Hidden.', 'product-restored' => 'Product moved to Live.', 'product-archived' => 'Product permanently archived.', 'order-updated' => 'Order updated.'];
+$notices = ['product-saved' => 'Product saved.', 'product-hidden' => 'Product moved to Hidden.', 'product-restored' => 'Product moved to Live.', 'product-archived' => 'Product permanently archived.', 'order-updated' => 'Order updated.', 'testimonial-approved' => 'Testimonial approved and published.', 'testimonial-rejected' => 'Testimonial moved to rejected.', 'testimonial-deleted' => 'Testimonial and its media were deleted.', 'testimonial-error' => 'The testimonial action could not be completed.'];
 $notice = $notices[$_GET['notice'] ?? ''] ?? '';
 $passwordNotice = '';
 $allowedStatuses = ['new', 'processing', 'ready', 'shipped', 'delivered', 'cancelled'];
