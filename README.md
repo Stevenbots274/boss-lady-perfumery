@@ -36,7 +36,7 @@ For an existing installation, run `migration-security.sql` and `migration-produc
 ### Vercel
 The included `vercel.json` uses the `vercel-php` community runtime and routes the application through `api/index.php`. The app uses Supabase PostgreSQL for products, orders, and rate limits. Add the `BL_*` environment variables under Vercel → Project Settings → Environment Variables. Vercel's filesystem is ephemeral, so do not use it for database storage.
 
-Supabase provides the PostgreSQL database and Auth used by this version.
+Supabase provides the PostgreSQL database and Auth used by this version. Auth supports both the private admin workspace and the optional customer account page.
 
 ### Environment variables
 - `BL_DB_DSN` — the exact PostgreSQL DSN for your Supabase project, for example `pgsql:host=aws-1-region.pooler.supabase.com;port=5432;dbname=postgres;sslmode=require`
@@ -59,6 +59,9 @@ Each order has a private URL containing a high-entropy access token, like:
 
 No customer login is required. Anyone who has the complete private link can view the order page. The order link is automatically included in the WhatsApp message sent to Boss Lady, where the product images can be opened at full size. The order ID and checkout phone number are required for status tracking.
 
+## Customer accounts
+Customer accounts are optional. Customers can create an email/password account at `/account` to see orders created with the same email address, including previous guest orders. Guest checkout, WhatsApp confirmation, public order links, and order tracking do not require an account. Email confirmation must be enabled in Supabase Auth before an account can access order history. Customer sessions are stored in Secure, HttpOnly cookies; access tokens are never stored in browser storage.
+
 ## Admin security
 - `/admin` requires the authorized Supabase Auth email and password.
 - The Supabase access token is stored in a Secure, HttpOnly, SameSite cookie and checked on every request.
@@ -70,7 +73,7 @@ No customer login is required. Anyone who has the complete private link can view
 ### Supabase Auth setup
 1. Create a Supabase project and enable the Email provider under Authentication → Providers.
 2. Create the Boss Lady admin user under Authentication → Users.
-3. Disable public sign-ups after creating that user.
+3. Keep the Email provider enabled. Keep public sign-ups enabled if optional customer accounts are part of the deployment; the admin workspace still only accepts the configured `BL_ADMIN_EMAIL`.
 4. Run `migration-security.sql` and `migration-product-lifecycle.sql` for an existing database.
 5. Add `BL_SUPABASE_URL`, `BL_SUPABASE_ANON_KEY`, and `BL_ADMIN_EMAIL` to Vercel.
 

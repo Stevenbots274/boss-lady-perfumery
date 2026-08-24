@@ -23,6 +23,14 @@
   setupMenu(document.querySelector('.site-menu'), document.querySelector('.site-links'), document.querySelector('#siteHeader'));
   setupMenu(document.querySelector('.mobile-menu'), document.querySelector('.sidebar'), document.querySelector('#adminShell'));
 
+  const accountLink = document.querySelector('[data-account-link]');
+  if (accountLink) {
+    fetch('/api/customer-auth.php?action=status', {headers: {Accept: 'application/json'}})
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (data?.authenticated) accountLink.textContent = 'My account'; })
+      .catch(() => {});
+  }
+
   document.querySelectorAll('label:not([for])').forEach(label => {
     if (label.querySelector('input, textarea, select')) return;
     const sibling = label.nextElementSibling;

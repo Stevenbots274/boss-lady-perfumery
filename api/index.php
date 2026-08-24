@@ -58,6 +58,9 @@ switch ($route) {
     case '/terms':
         require __DIR__ . '/../terms.php';
         break;
+    case '/account':
+        require __DIR__ . '/../account.php';
+        break;
     case '/404':
         require __DIR__ . '/../not-found.php';
         break;
@@ -69,6 +72,9 @@ switch ($route) {
         break;
     case '/api/track-order.php':
         require __DIR__ . '/track-order.php';
+        break;
+    case '/api/customer-auth.php':
+        require __DIR__ . '/customer-auth.php';
         break;
     default:
         require __DIR__ . '/../not-found.php';
