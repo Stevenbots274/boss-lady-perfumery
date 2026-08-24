@@ -86,10 +86,14 @@ if (!isset($input['items']) || !is_array($input['items']) || !$input['items'] ||
     fail_request(422, 'Add at least one valid product.');
 }
 
-function order_rate_allowed($pdo, $keys)
+function order_rate_allowed($pdo, $keys, $manageTransaction = true)
 {
+    $startedTransaction = false;
     try {
-        $pdo->beginTransaction();
+        if ($manageTransaction) {
+            $pdo->beginTransaction();
+            $startedTransaction = true;
+        }
         $insert = $pdo->prepare('INSERT INTO rate_limits(rate_key,window_started,request_count) VALUES(?,CURRENT_TIMESTAMP,0) ON CONFLICT (rate_key) DO NOTHING');
         $select = $pdo->prepare('SELECT window_started,request_count FROM rate_limits WHERE rate_key=? FOR UPDATE');
         $reset = $pdo->prepare('UPDATE rate_limits SET window_started=NOW(),request_count=1 WHERE rate_key=?');
@@ -111,10 +115,10 @@ function order_rate_allowed($pdo, $keys)
                 $increment->execute([$rateKey]);
             }
         }
-        $pdo->commit();
+        if ($startedTransaction) $pdo->commit();
         return $allowed;
     } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
+        if ($startedTransaction && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
         error_log('Boss Lady order rate limit failed.');
@@ -143,17 +147,23 @@ $rateKeys = [
     ['ip:' . (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 30],
     ['email:' . strtolower($email), 10],
 ];
-$rateAllowed = order_rate_allowed($pdo, $rateKeys);
-if ($rateAllowed === null) fail_request(503, 'Ordering is temporarily unavailable.');
-if (!$rateAllowed) {
-    header('Retry-After: 600');
-    fail_request(429, 'Too many order attempts. Try again later.');
-}
-
 $total = 0;
 $clean = [];
+$savepointCreated = false;
 try {
     $pdo->beginTransaction();
+    $rateAllowed = order_rate_allowed($pdo, $rateKeys, false);
+    if ($rateAllowed === null) {
+        $pdo->rollBack();
+        fail_request(503, 'Ordering is temporarily unavailable.');
+    }
+    if (!$rateAllowed) {
+        $pdo->commit();
+        header('Retry-After: 600');
+        fail_request(429, 'Too many order attempts. Try again later.');
+    }
+    $pdo->exec('SAVEPOINT order_work');
+    $savepointCreated = true;
     release_expired_reservations($pdo);
     $stmt = $pdo->prepare('SELECT id,name,price_kobo,stock FROM products WHERE id=? AND active=TRUE LIMIT 1 FOR UPDATE');
     $updateStock = $pdo->prepare('UPDATE products SET stock=? WHERE id=?');
@@ -199,12 +209,26 @@ try {
     $pdo->commit();
 } catch (InvalidArgumentException $e) {
     if ($pdo->inTransaction()) {
-        $pdo->rollBack();
+        if ($savepointCreated) {
+            try {
+                $pdo->exec('ROLLBACK TO SAVEPOINT order_work');
+                $pdo->commit();
+            } catch (Throwable $rollbackError) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+            }
+        } else $pdo->rollBack();
     }
     fail_request(422, $e->getMessage());
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) {
-        $pdo->rollBack();
+        if ($savepointCreated) {
+            try {
+                $pdo->exec('ROLLBACK TO SAVEPOINT order_work');
+                $pdo->commit();
+            } catch (Throwable $rollbackError) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+            }
+        } else $pdo->rollBack();
     }
     error_log('Boss Lady order creation failed.');
     fail_request(500, 'Could not create the order right now.');
