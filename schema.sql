@@ -48,3 +48,17 @@ CREATE TABLE order_items (
   CHECK (unit_price_kobo > 0),
   CHECK (quantity > 0)
 );
+
+CREATE OR REPLACE FUNCTION prevent_product_unarchive() RETURNS trigger AS $$
+BEGIN
+  IF OLD.archived_at IS NOT NULL AND NEW.archived_at IS NULL THEN
+    RAISE EXCEPTION 'Archived products cannot be restored';
+  END IF;
+  IF NEW.archived_at IS NOT NULL THEN
+    NEW.active = FALSE;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER product_archive_guard BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION prevent_product_unarchive();

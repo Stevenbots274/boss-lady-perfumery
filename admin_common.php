@@ -57,6 +57,19 @@ $csrfToken = $csrfValid ? $csrfCookie : bin2hex(random_bytes(32));
 if (!$csrfValid) set_auth_cookie('__Host-bl_admin_csrf', $csrfToken, time() + 86400);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_ok($csrfToken)) { http_response_code(403); exit('Invalid request.'); }
 
+require __DIR__ . '/db.php';
+try {
+    $pdo->exec('ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_products_archived_at ON products(archived_at)');
+    $pdo->exec("CREATE OR REPLACE FUNCTION prevent_product_unarchive() RETURNS trigger AS \$\$ BEGIN IF OLD.archived_at IS NOT NULL AND NEW.archived_at IS NULL THEN RAISE EXCEPTION 'Archived products cannot be restored'; END IF; IF NEW.archived_at IS NOT NULL THEN NEW.active = FALSE; END IF; RETURN NEW; END; \$\$ LANGUAGE plpgsql");
+    $pdo->exec('DROP TRIGGER IF EXISTS product_archive_guard ON products');
+    $pdo->exec('CREATE TRIGGER product_archive_guard BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION prevent_product_unarchive()');
+} catch (Throwable $e) {
+    error_log('Boss Lady product lifecycle setup failed.');
+    http_response_code(503);
+    exit('Product archive tools are temporarily unavailable.');
+}
+
 $adminToken = is_string($_COOKIE['__Host-bl_admin_token'] ?? null) ? $_COOKIE['__Host-bl_admin_token'] : '';
 $adminUser = strlen($adminToken) <= 4096 ? supabase_user($adminToken, $config) : null;
 $adminAuthorized = $adminUser && is_string($adminUser['email'] ?? null) && $config['admin_email'] && hash_equals($config['admin_email'], strtolower($adminUser['email']));
@@ -84,17 +97,6 @@ if (isset($_POST['logout'])) {
     header('Location: ' . admin_path());
     exit;
 }
-require __DIR__ . '/db.php';
-
-try {
-    $pdo->exec('ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_products_archived_at ON products(archived_at)');
-} catch (Throwable $e) {
-    error_log('Boss Lady product lifecycle setup failed.');
-    http_response_code(503);
-    exit('Product archive tools are temporarily unavailable.');
-}
-
 function product_state($product)
 {
     if (!empty($product['archived_at'])) return 'archived';
