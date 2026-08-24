@@ -11,7 +11,6 @@ function customer_auth_user($accessToken, $config)
     ]);
     $body = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
     if ($body === false || $status !== 200) return null;
     $user = json_decode($body, true);
     if (!is_array($user) || !is_string($user['email'] ?? null)) return null;
@@ -33,7 +32,6 @@ function customer_auth_refresh($refreshToken, $config)
     ]);
     $body = curl_exec($curl);
     $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
     if ($body === false || $status !== 200) return null;
     $session = json_decode($body, true);
     return is_array($session) && is_string($session['access_token'] ?? null) ? $session : null;
