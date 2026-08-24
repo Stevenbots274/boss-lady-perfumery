@@ -2,9 +2,18 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/index.php": {
-      "runtime": "vercel-php@0.9.0"
+      "runtime": "vercel-php@0.9.0",
+      "regions": ["cpt1"]
     }
   },
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    }
+  ],
   "routes": [
     { "src": "^/order/([a-fA-F0-9]{64})/?$", "dest": "/api/index.php?route=/order/$1" },
     { "src": "^/api/create-order\\.php$", "dest": "/api/index.php?route=/api/create-order.php" },
@@ -24,11 +33,12 @@
     { "src": "^/track/?$", "dest": "/api/index.php?route=/track" },
     { "src": "^/privacy/?$", "dest": "/api/index.php?route=/privacy" },
     { "src": "^/terms/?$", "dest": "/api/index.php?route=/terms" },
+    { "src": "^/404/?$", "dest": "/api/index.php?route=/404" },
     { "src": "^/$", "dest": "/api/index.php?route=/" },
     { "src": "^/index\\.php$", "dest": "/api/index.php?route=/" },
     { "src": "^/(.*\\/)?\\.[^/]+$", "dest": "/api/index.php?route=/__blocked" },
     { "src": "^/.*\\.(php|sql|md|htaccess)$", "dest": "/api/index.php?route=/__blocked" },
     { "handle": "filesystem" },
-    { "src": "^/.*$", "status": 404 }
+    { "src": "^/.*$", "dest": "/api/index.php?route=/404" }
   ]
 }

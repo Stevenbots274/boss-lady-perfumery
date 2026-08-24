@@ -2,8 +2,12 @@
 require __DIR__ . '/db.php';
 $token = is_string($_GET['token'] ?? null) ? strtolower(trim($_GET['token'])) : '';
 if (!preg_match('/^[a-f0-9]{64}$/', $token)) {
-    http_response_code(404);
-    exit('Order not found.');
+    require __DIR__ . '/not-found.php';
+    exit;
+}
+if (!($pdo instanceof PDO)) {
+    require __DIR__ . '/order-unavailable.php';
+    exit;
 }
 
 try {
@@ -11,8 +15,8 @@ try {
     $s->execute([$token]);
     $order = $s->fetch();
     if (!$order) {
-        http_response_code(404);
-        exit('Order not found.');
+        require __DIR__ . '/not-found.php';
+        exit;
     }
 
     $i = $pdo->prepare('SELECT order_items.*, products.image_url FROM order_items LEFT JOIN products ON products.id=order_items.product_id WHERE order_items.order_id=? ORDER BY order_items.id');
@@ -20,8 +24,8 @@ try {
     $items = $i->fetchAll();
 } catch (Throwable $e) {
     error_log('Boss Lady order page load failed.');
-    http_response_code(500);
-    exit('Order page temporarily unavailable.');
+    require __DIR__ . '/order-unavailable.php';
+    exit;
 }
 
 function naira($kobo){ return '₦'.number_format($kobo/100, 2); }
@@ -67,7 +71,7 @@ h1,h2{font-family:Georgia}.id{font-size:24px;color:#f0d18b}.row{display:flex;jus
 <div class="box">
 <h2>Items</h2>
 <?php foreach($items as $item): ?>
- <div class="item-row"><?php if (!empty($item['image_url'])): ?><a class="image-link" href="<?=htmlspecialchars($item['image_url'], ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noreferrer" title="Open full-size product image" aria-label="Open full-size image of <?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?>"><img class="item-image" src="<?=htmlspecialchars($item['image_url'], ENT_QUOTES, 'UTF-8')?>" alt="<?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?>"></a><?php else: ?><div class="item-placeholder">BL</div><?php endif; ?><div class="item-copy"><strong><?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?> × <?=intval($item['quantity'])?></strong><span><?=naira($item['unit_price_kobo']*$item['quantity'])?><?php if (!empty($item['image_url'])): ?> <a href="<?=htmlspecialchars($item['image_url'], ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noreferrer" style="color:#f0d18b;text-decoration:underline;text-underline-offset:3px">Open image ↗</a><?php endif; ?></span></div></div>
+ <div class="item-row"><?php if (!empty($item['image_url'])): ?><a class="image-link" href="<?=htmlspecialchars($item['image_url'], ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noreferrer" title="Open full-size product image" aria-label="Open full-size image of <?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?>"><img class="item-image" src="<?=htmlspecialchars($item['image_url'], ENT_QUOTES, 'UTF-8')?>" alt="<?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?>" loading="lazy" decoding="async"></a><?php else: ?><div class="item-placeholder">BL</div><?php endif; ?><div class="item-copy"><strong><?=htmlspecialchars($item['product_name'], ENT_QUOTES, 'UTF-8')?> × <?=intval($item['quantity'])?></strong><span><?=naira($item['unit_price_kobo']*$item['quantity'])?><?php if (!empty($item['image_url'])): ?> <a href="<?=htmlspecialchars($item['image_url'], ENT_QUOTES, 'UTF-8')?>" target="_blank" rel="noreferrer" style="color:#f0d18b;text-decoration:underline;text-underline-offset:3px">Open image ↗</a><?php endif; ?></span></div></div>
 <?php endforeach; ?>
 <div class="row total"><span>Total</span><span><?=naira($order['total_kobo'])?></span></div>
 <a class="btn" href="https://wa.me/<?=$config['whatsapp']?>?text=<?=rawurlencode($waMsg)?>">Chat on WhatsApp</a>

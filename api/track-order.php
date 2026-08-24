@@ -23,6 +23,10 @@ $phone = trim(is_string($input['phone'] ?? null) ? $input['phone'] : '');
 if (!preg_match('/^BL-[0-9]{8}-[A-Fa-f0-9]{6,16}$/', $code) || !preg_match('/^[0-9+().\s-]{7,40}$/', $phone)) {
     track_error(422, 'Enter the order ID and phone number used at checkout.');
 }
+if (!($pdo instanceof PDO)) {
+    header('Retry-After: 30');
+    track_error(503, 'Order tracking is taking a short pause. Please try again shortly or message us on WhatsApp.');
+}
 
 try {
     $s = $pdo->prepare('SELECT order_code,total_kobo,payment_status,order_status,updated_at FROM orders WHERE order_code=? AND phone=? LIMIT 1');

@@ -34,7 +34,7 @@ return [
         'user' => $dbUser,
         'pass' => getenv('BL_DB_PASSWORD') ?: '',
     ],
-    'site_url' => rtrim(getenv('BL_SITE_URL') ?: 'https://YOUR-DOMAIN.com', '/'),
+    'site_url' => rtrim(getenv('BL_SITE_URL') ?: 'https://bossladyperfumery.vercel.app', '/'),
     'whatsapp' => preg_replace('/\D+/', '', getenv('BL_WHATSAPP') ?: '2349067956221'),
     'whatsapp_display' => trim(getenv('BL_WHATSAPP_DISPLAY') ?: '0906 795 6221'),
     'call_display' => trim(getenv('BL_CALL_DISPLAY') ?: '0703 234 8639'),

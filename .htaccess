@@ -1,4 +1,5 @@
 RewriteEngine On
+ErrorDocument 404 /not-found.php
 
 # All sessions and customer data must travel over HTTPS.
 RewriteCond %{HTTPS} !=on
@@ -24,6 +25,7 @@ RewriteRule ^faq/?$ faq.php [L]
 RewriteRule ^track/?$ track.php [L]
 RewriteRule ^privacy/?$ privacy.php [L]
 RewriteRule ^terms/?$ terms.php [L]
+RewriteRule ^404/?$ not-found.php [L]
 RewriteRule ^admin/?$ admin.php [L]
 RewriteRule ^admin/products/?$ admin-products.php [L]
 RewriteRule ^admin/archive/?$ admin-archive.php [L]

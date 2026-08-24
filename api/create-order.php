@@ -49,6 +49,11 @@ if ($origin !== '' && rtrim($origin, '/') !== rtrim($expectedOrigin, '/')) {
     fail_request(403, 'Request origin is not allowed.');
 }
 
+if (!($pdo instanceof PDO)) {
+    header('Retry-After: 30');
+    fail_request(503, 'Orders are taking a short pause. Please try again shortly or message us on WhatsApp.');
+}
+
 $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
 if ($contentLength > 65536) {
     fail_request(413, 'Request is too large.');

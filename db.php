@@ -21,17 +21,14 @@ try {
     if (empty($config['db']['dsn']) || empty($config['db']['user']) || empty($config['db']['pass'])) {
         throw new RuntimeException('Database configuration is incomplete.');
     }
-    $pdo = new PDO($config['db']['dsn'], $config['db']['user'], $config['db']['pass'], [
+    $dsn = $config['db']['dsn'];
+    if (stripos($dsn, 'connect_timeout=') === false) $dsn = rtrim($dsn, ';') . ';connect_timeout=4';
+    $pdo = new PDO($dsn, $config['db']['user'], $config['db']['pass'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 } catch (Throwable $e) {
     error_log('Boss Lady database connection failed.');
-    http_response_code(500);
-    if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false) {
-        header('Content-Type: application/json; charset=utf-8');
-        exit(json_encode(['ok' => false, 'error' => 'Service temporarily unavailable.']));
-    }
-    exit('Service temporarily unavailable.');
+    $pdo = null;
 }

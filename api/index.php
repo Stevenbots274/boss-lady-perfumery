@@ -9,9 +9,8 @@ if (preg_match('#^/order/([a-fA-F0-9]{64})/?$#', $route, $matches)) {
 }
 
 if ($route === '/__blocked') {
-    http_response_code(404);
-    header('Content-Type: text/plain; charset=utf-8');
-    exit('Not found.');
+    require __DIR__ . '/../not-found.php';
+    exit;
 }
 
 switch ($route) {
@@ -59,6 +58,9 @@ switch ($route) {
     case '/terms':
         require __DIR__ . '/../terms.php';
         break;
+    case '/404':
+        require __DIR__ . '/../not-found.php';
+        break;
     case '/order.php':
         require __DIR__ . '/../order.php';
         break;
@@ -69,7 +71,5 @@ switch ($route) {
         require __DIR__ . '/track-order.php';
         break;
     default:
-        http_response_code(404);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo 'Not found.';
+        require __DIR__ . '/../not-found.php';
 }

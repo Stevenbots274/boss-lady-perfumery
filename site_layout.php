@@ -7,6 +7,7 @@ function site_support_url($config, $message = 'Hello Boss Lady Perfumery, I need
 
 function site_start($config, $title, $description, $active = '')
 {
+    header('Cache-Control: public, s-maxage=300, stale-while-revalidate=1800');
     $supportUrl = site_support_url($config);
     $links = ['shop' => ['/shop', 'The collection'], 'about' => ['/about', 'Our signature'], 'finder' => ['/finder', 'Find your scent'], 'track' => ['/track', 'Track an order']];
     ?>

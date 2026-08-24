@@ -59,6 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_ok($csrfToken)) { http_respon
 
 require __DIR__ . '/db.php';
 require __DIR__ . '/inventory.php';
+if (!($pdo instanceof PDO)) {
+    http_response_code(503);
+    exit('The admin workspace is taking a short pause. Please try again in a moment.');
+}
 
 $adminToken = is_string($_COOKIE['__Host-bl_admin_token'] ?? null) ? $_COOKIE['__Host-bl_admin_token'] : '';
 $adminUser = strlen($adminToken) <= 4096 ? supabase_user($adminToken, $config) : null;
@@ -77,7 +81,7 @@ if (!$adminAuthorized) {
         $loginError = 'Sign-in failed or this account is not authorized.';
     }
     ?>
-<script src="/assets/login.js"></script>
+<script src="/assets/login.js" defer></script>
 <!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg"><title>Boss Lady Admin</title><style>:root{--ink:#191315;--rose:#dda8b1;--gold:#c59a53;--paper:#fffaf6}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--ink);color:var(--paper);font:14px Arial}.login{width:min(400px,calc(100% - 32px));padding:34px;background:#251c1f;border:1px solid #c59a5344}.mark{color:var(--gold);font:italic 38px Georgia}.eyebrow{margin:18px 0 8px;color:var(--rose);font-size:10px;letter-spacing:.2em;text-transform:uppercase}h1{margin:0 0 26px;font:400 34px Georgia}label{display:block;margin:13px 0 6px;color:#cbbdc0;font-size:11px;text-transform:uppercase;letter-spacing:.1em}input{width:100%;padding:13px;border:1px solid #ffffff22;background:#171012;color:#fff}button{margin-top:17px;padding:13px 18px;border:0;background:var(--rose);color:#25171b;font-weight:bold;cursor:pointer}.error{margin:0 0 15px;color:#ffabb8;font-size:12px}</style></head><body><main class="login"><div class="mark">BL</div><div class="eyebrow">Private workspace</div><h1>Boss Lady Admin</h1><?php if ($loginError): ?><p class="error"><?=admin_h($loginError)?></p><?php endif; ?><form id="supabaseLogin" method="post" data-supabase-url="<?=admin_h($config['supabase_url'])?>" data-supabase-anon-key="<?=admin_h($config['supabase_anon_key'])?>"><input type="hidden" name="csrf" value="<?=admin_h($csrfToken)?>"><label>Email</label><input name="email" type="email" autocomplete="username" required><label>Password</label><input name="password" type="password" autocomplete="current-password" required><button name="login" value="1">Enter workspace</button></form></main><script>document.getElementById('supabaseLogin').addEventListener('submit',async function(event){event.preventDefault();const form=event.currentTarget,button=form.querySelector('button');button.disabled=true;try{const auth=await fetch(form.dataset.supabaseUrl+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':form.dataset.supabaseAnonKey},body:JSON.stringify({email:form.email.value,password:form.password.value})});const data=await auth.json();if(!auth.ok||!data.access_token)throw new Error();const response=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf:form.csrf.value,login:'1',supabase_token:data.access_token})});if(!response.ok)throw new Error();location.reload()}catch(_){location.reload()}});</script></body></html>
 <?php
     exit;
@@ -209,7 +213,7 @@ if (isset($_POST['update_order'])) {
 }
 
 try { $products = $pdo->query('SELECT * FROM products ORDER BY id DESC')->fetchAll(); $orders = $pdo->query('SELECT * FROM orders ORDER BY id DESC')->fetchAll(); }
-catch (Throwable $e) { error_log('Boss Lady admin data load failed.'); http_response_code(500); exit('Service temporarily unavailable.'); }
+catch (Throwable $e) { error_log('Boss Lady admin data load failed.'); http_response_code(503); exit('The admin workspace is taking a short pause. Please try again in a moment.'); }
 $editId = filter_var($_GET['edit'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 0;
 $editingProduct = null; foreach ($products as $product) if ((int) $product['id'] === $editId) $editingProduct = $product;
 $activeProducts = count(array_filter($products, fn($p) => product_state($p) === 'live'));
