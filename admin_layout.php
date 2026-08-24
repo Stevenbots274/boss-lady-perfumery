@@ -16,6 +16,7 @@ function admin_start($title, $active, $config)
 function admin_end()
 {
     ?>
+<script src="/assets/site.js"></script>
 </main></div></div><script>const shell=document.getElementById('adminShell');if(localStorage.getItem('bl_admin_sidebar')==='collapsed')shell.classList.add('collapsed');document.getElementById('collapse').addEventListener('click',()=>{shell.classList.toggle('collapsed');localStorage.setItem('bl_admin_sidebar',shell.classList.contains('collapsed')?'collapsed':'open')});document.getElementById('mobileMenu').addEventListener('click',()=>shell.classList.toggle('mobile-open'));document.querySelectorAll('.side-nav a,.side-foot a').forEach(link=>link.addEventListener('click',()=>shell.classList.remove('mobile-open')));</script></body></html>
 <?php
 }

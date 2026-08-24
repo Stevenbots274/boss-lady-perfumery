@@ -62,3 +62,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER product_archive_guard BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION prevent_product_unarchive();
+
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON products, rate_limits, orders, order_items FROM anon, authenticated;

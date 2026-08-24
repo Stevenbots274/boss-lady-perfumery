@@ -9,13 +9,17 @@ function track_error($status, $message)
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    header('Allow: GET');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Allow: POST');
     track_error(405, 'Method not allowed.');
 }
 
-$code = trim(is_string($_GET['code'] ?? null) ? $_GET['code'] : '');
-$phone = trim(is_string($_GET['phone'] ?? null) ? $_GET['phone'] : '');
+$contentType = strtolower(trim(explode(';', (string) ($_SERVER['CONTENT_TYPE'] ?? ''), 2)[0]));
+if ($contentType !== 'application/json') track_error(415, 'The request must be JSON.');
+$input = json_decode(file_get_contents('php://input') ?: '', true);
+if (!is_array($input)) track_error(400, 'Invalid request.');
+$code = trim(is_string($input['code'] ?? null) ? $input['code'] : '');
+$phone = trim(is_string($input['phone'] ?? null) ? $input['phone'] : '');
 if (!preg_match('/^BL-[0-9]{8}-[A-Fa-f0-9]{6,16}$/', $code) || !preg_match('/^[0-9+().\s-]{7,40}$/', $phone)) {
     track_error(422, 'Enter the order ID and phone number used at checkout.');
 }

@@ -8,6 +8,12 @@ if (preg_match('#^/order/([a-fA-F0-9]{64})/?$#', $route, $matches)) {
     exit;
 }
 
+if ($route === '/__blocked') {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Not found.');
+}
+
 switch ($route) {
     case '/':
     case '/index.php':

@@ -19,14 +19,9 @@ if (!$publicSupabaseKey && substr_count($supabaseKey, '.') === 2) {
     $payload = json_decode(base64_decode($encodedPayload), true);
     $publicSupabaseKey = is_array($payload) && ($payload['role'] ?? '') === 'anon';
 }
-$dbDsn = getenv('BL_DB_DSN') ?: 'pgsql:host=aws-1-eu-west-1.pooler.supabase.com;port=5432;dbname=postgres;sslmode=require';
+$dbDsn = trim(getenv('BL_DB_DSN') ?: '');
 $dbUser = getenv('BL_DB_USER') ?: '';
-if (preg_match('/^pgsql:host=db\.([a-z0-9-]+)\.supabase\.co(?:;|$)/i', $dbDsn, $dbHostMatch)) {
-    $dbDsn = preg_replace('/host=db\.[^;]+/i', 'host=aws-1-eu-west-1.pooler.supabase.com', $dbDsn, 1);
-    if (strcasecmp($dbUser, 'postgres') === 0) {
-        $dbUser = 'postgres.' . $dbHostMatch[1];
-    }
-}
+$adminEmail = strtolower(trim(getenv('BL_ADMIN_EMAIL') ?: ''));
 return [
     'db' => [
         'dsn' => $dbDsn,
@@ -35,7 +30,9 @@ return [
     ],
     'site_url' => rtrim(getenv('BL_SITE_URL') ?: 'https://YOUR-DOMAIN.com', '/'),
     'whatsapp' => preg_replace('/\D+/', '', getenv('BL_WHATSAPP') ?: '2349067956221'),
+    'whatsapp_display' => trim(getenv('BL_WHATSAPP_DISPLAY') ?: '0906 795 6221'),
+    'call_display' => trim(getenv('BL_CALL_DISPLAY') ?: '0703 234 8639'),
     'supabase_url' => $validSupabaseUrl ? $supabaseUrl : '',
     'supabase_anon_key' => $publicSupabaseKey ? $supabaseKey : '',
-    'admin_email' => strtolower(trim(getenv('BL_ADMIN_EMAIL') ?: 'bosslady@bossladyperfumery.com.ng')),
+    'admin_email' => $adminEmail,
 ];

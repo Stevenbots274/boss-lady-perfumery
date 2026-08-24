@@ -58,17 +58,7 @@ if (!$csrfValid) set_auth_cookie('__Host-bl_admin_csrf', $csrfToken, time() + 86
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_ok($csrfToken)) { http_response_code(403); exit('Invalid request.'); }
 
 require __DIR__ . '/db.php';
-try {
-    $pdo->exec('ALTER TABLE products ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP NULL DEFAULT NULL');
-    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_products_archived_at ON products(archived_at)');
-    $pdo->exec("CREATE OR REPLACE FUNCTION prevent_product_unarchive() RETURNS trigger AS \$\$ BEGIN IF OLD.archived_at IS NOT NULL AND NEW.archived_at IS NULL THEN RAISE EXCEPTION 'Archived products cannot be restored'; END IF; IF NEW.archived_at IS NOT NULL THEN NEW.active = FALSE; END IF; RETURN NEW; END; \$\$ LANGUAGE plpgsql");
-    $pdo->exec('DROP TRIGGER IF EXISTS product_archive_guard ON products');
-    $pdo->exec('CREATE TRIGGER product_archive_guard BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION prevent_product_unarchive()');
-} catch (Throwable $e) {
-    error_log('Boss Lady product lifecycle setup failed.');
-    http_response_code(503);
-    exit('Product archive tools are temporarily unavailable.');
-}
+require __DIR__ . '/inventory.php';
 
 $adminToken = is_string($_COOKIE['__Host-bl_admin_token'] ?? null) ? $_COOKIE['__Host-bl_admin_token'] : '';
 $adminUser = strlen($adminToken) <= 4096 ? supabase_user($adminToken, $config) : null;
@@ -87,6 +77,7 @@ if (!$adminAuthorized) {
         $loginError = 'Sign-in failed or this account is not authorized.';
     }
     ?>
+<script src="/assets/login.js"></script>
 <!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/jpeg" href="/assets/boss-lady-favicon.jpg"><title>Boss Lady Admin</title><style>:root{--ink:#191315;--rose:#dda8b1;--gold:#c59a53;--paper:#fffaf6}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--ink);color:var(--paper);font:14px Arial}.login{width:min(400px,calc(100% - 32px));padding:34px;background:#251c1f;border:1px solid #c59a5344}.mark{color:var(--gold);font:italic 38px Georgia}.eyebrow{margin:18px 0 8px;color:var(--rose);font-size:10px;letter-spacing:.2em;text-transform:uppercase}h1{margin:0 0 26px;font:400 34px Georgia}label{display:block;margin:13px 0 6px;color:#cbbdc0;font-size:11px;text-transform:uppercase;letter-spacing:.1em}input{width:100%;padding:13px;border:1px solid #ffffff22;background:#171012;color:#fff}button{margin-top:17px;padding:13px 18px;border:0;background:var(--rose);color:#25171b;font-weight:bold;cursor:pointer}.error{margin:0 0 15px;color:#ffabb8;font-size:12px}</style></head><body><main class="login"><div class="mark">BL</div><div class="eyebrow">Private workspace</div><h1>Boss Lady Admin</h1><?php if ($loginError): ?><p class="error"><?=admin_h($loginError)?></p><?php endif; ?><form id="supabaseLogin" method="post" data-supabase-url="<?=admin_h($config['supabase_url'])?>" data-supabase-anon-key="<?=admin_h($config['supabase_anon_key'])?>"><input type="hidden" name="csrf" value="<?=admin_h($csrfToken)?>"><label>Email</label><input name="email" type="email" autocomplete="username" required><label>Password</label><input name="password" type="password" autocomplete="current-password" required><button name="login" value="1">Enter workspace</button></form></main><script>document.getElementById('supabaseLogin').addEventListener('submit',async function(event){event.preventDefault();const form=event.currentTarget,button=form.querySelector('button');button.disabled=true;try{const auth=await fetch(form.dataset.supabaseUrl+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'Content-Type':'application/json','apikey':form.dataset.supabaseAnonKey},body:JSON.stringify({email:form.email.value,password:form.password.value})});const data=await auth.json();if(!auth.ok||!data.access_token)throw new Error();const response=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({csrf:form.csrf.value,login:'1',supabase_token:data.access_token})});if(!response.ok)throw new Error();location.reload()}catch(_){location.reload()}});</script></body></html>
 <?php
     exit;
@@ -97,10 +88,27 @@ if (isset($_POST['logout'])) {
     header('Location: ' . admin_path());
     exit;
 }
+release_expired_reservations($pdo);
 function product_state($product)
 {
     if (!empty($product['archived_at'])) return 'archived';
     return !empty($product['active']) ? 'live' : 'hidden';
+}
+function order_status_transition_allowed($from, $to)
+{
+    $transitions = [
+        'new' => ['new', 'processing', 'cancelled'],
+        'processing' => ['processing', 'ready', 'cancelled'],
+        'ready' => ['ready', 'shipped'],
+        'shipped' => ['shipped', 'delivered'],
+        'delivered' => ['delivered'],
+        'cancelled' => ['cancelled'],
+    ];
+    return in_array($to, $transitions[$from] ?? [], true);
+}
+function admin_order_status_label($value)
+{
+    return ['new' => 'New', 'processing' => 'Processing', 'ready' => 'Ready for delivery', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled'][$value] ?? 'Updated';
 }
 
 $notices = ['product-saved' => 'Product saved.', 'product-hidden' => 'Product moved to Hidden.', 'product-restored' => 'Product moved to Live.', 'product-archived' => 'Product permanently archived.', 'order-updated' => 'Order updated.'];
@@ -122,7 +130,14 @@ if (isset($_POST['save'])) {
     $description = is_string($_POST['description'] ?? null) ? trim($_POST['description']) : '';
     $priceInput = is_string($_POST['price'] ?? null) ? trim($_POST['price']) : '';
     $image = is_string($_POST['image_url'] ?? null) ? trim($_POST['image_url']) : '';
+    $removeImage = !empty($_POST['remove_image']);
     $stockInput = is_string($_POST['stock'] ?? null) ? trim($_POST['stock']) : '';
+    $existingImage = null;
+    if ($id) {
+        $existingStatement = $pdo->prepare('SELECT image_url FROM products WHERE id=?');
+        $existingStatement->execute([$id]);
+        $existingImage = $existingStatement->fetchColumn() ?: null;
+    }
     $price = is_numeric($priceInput) && preg_match('/^\d+(?:\.\d{1,2})?$/', $priceInput) ? (int) round((float) $priceInput * 100) : 0;
     $imageParts = $image !== '' ? parse_url($image) : [];
     $validImage = $image === '' || (filter_var($image, FILTER_VALIDATE_URL) && ($imageParts['scheme'] ?? '') === 'https' && strlen($image) <= 500);
@@ -140,9 +155,11 @@ if (isset($_POST['save'])) {
         if (!$uploadedUrl && !$uploadError) $uploadError = 'The image could not be uploaded right now.';
     }
     if ($uploadedUrl) $image = $uploadedUrl;
+    elseif ($removeImage) $image = '';
+    elseif ($image === '' && $existingImage) $image = $existingImage;
     $validImage = $uploadedUrl || $validImage;
     if ($name === '' || strlen($name) > 160 || strlen($description) > 5000 || $price < 1 || $price > 2147483647 || !$validImage || !$validStock || $uploadError) {
-        $notice = $uploadError ?: 'Enter a valid product name, price, image URL, and stock value.';
+        $notice = $uploadError ?: 'Enter a valid product name, price, and stock value.';
     } else {
         try {
             $stock = $stockInput === '' ? null : (int) $stockInput;
@@ -179,22 +196,23 @@ if (isset($_POST['update_order'])) {
     else try {
         $pdo->beginTransaction();
         $currentStatement = $pdo->prepare('SELECT order_status,stock_released_at FROM orders WHERE id=? FOR UPDATE'); $currentStatement->execute([$id]); $current = $currentStatement->fetch();
-        if (!$current || ($current['order_status'] === 'cancelled' && $orderStatus !== 'cancelled')) throw new InvalidArgumentException('Cancelled orders cannot be reopened.');
+        if (!$current || !order_status_transition_allowed($current['order_status'], $orderStatus)) throw new InvalidArgumentException('That order cannot move from ' . admin_order_status_label($current['order_status'] ?? '') . ' to ' . admin_order_status_label($orderStatus) . '.');
         $releaseStock = $orderStatus === 'cancelled' && $current['stock_released_at'] === null;
         if ($releaseStock) {
-            $items = $pdo->prepare('SELECT product_id,SUM(quantity) AS quantity FROM order_items WHERE order_id=? GROUP BY product_id'); $items->execute([$id]); $product = $pdo->prepare('SELECT stock FROM products WHERE id=? FOR UPDATE'); $update = $pdo->prepare('UPDATE products SET stock=? WHERE id=?');
-            while ($item = $items->fetch()) { $product->execute([(int) $item['product_id']]); $row = $product->fetch(); if (!$row) throw new RuntimeException('Product no longer exists.'); if ($row['stock'] !== null) $update->execute([(int) $row['stock'] + (int) $item['quantity'], (int) $item['product_id']]); }
+            release_order_stock($pdo, $id);
             $s = $pdo->prepare('UPDATE orders SET order_status=?,payment_status=?,stock_released_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?');
+        } elseif ($orderStatus !== 'new') {
+            $s = $pdo->prepare('UPDATE orders SET order_status=?,payment_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?');
         } else $s = $pdo->prepare('UPDATE orders SET order_status=?,payment_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?');
         $s->execute([$orderStatus, $paymentStatus, $id]); $pdo->commit(); admin_redirect('order-updated', '#orders');
     } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); $notice = $e instanceof InvalidArgumentException ? $e->getMessage() : 'The order could not be updated right now.'; }
 }
 
-try { $products = $pdo->query('SELECT * FROM products ORDER BY id DESC')->fetchAll(); $orders = $pdo->query('SELECT * FROM orders ORDER BY id DESC LIMIT 100')->fetchAll(); }
+try { $products = $pdo->query('SELECT * FROM products ORDER BY id DESC')->fetchAll(); $orders = $pdo->query('SELECT * FROM orders ORDER BY id DESC')->fetchAll(); }
 catch (Throwable $e) { error_log('Boss Lady admin data load failed.'); http_response_code(500); exit('Service temporarily unavailable.'); }
 $editId = filter_var($_GET['edit'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 0;
 $editingProduct = null; foreach ($products as $product) if ((int) $product['id'] === $editId) $editingProduct = $product;
-$activeProducts = count(array_filter($products, fn($p) => (bool) $p['active']));
+$activeProducts = count(array_filter($products, fn($p) => product_state($p) === 'live'));
 $hiddenProducts = count(array_filter($products, fn($p) => product_state($p) === 'hidden'));
 $archivedProducts = count(array_filter($products, fn($p) => product_state($p) === 'archived'));
 $stockAlerts = count(array_filter($products, fn($p) => product_state($p) !== 'archived' && $p['stock'] !== null && (int) $p['stock'] <= 3));

@@ -18,7 +18,7 @@ header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-in
 header('Cache-Control: no-store');
 
 try {
-    if (empty($config['db']['dsn']) || empty($config['db']['user'])) {
+    if (empty($config['db']['dsn']) || empty($config['db']['user']) || empty($config['db']['pass'])) {
         throw new RuntimeException('Database configuration is incomplete.');
     }
     $pdo = new PDO($config['db']['dsn'], $config['db']['user'], $config['db']['pass'], [

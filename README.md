@@ -3,7 +3,7 @@
 Live site: https://bossladyperfumery.vercel.app
 
 ## Customer flow
-Shop → Add to cart → Enter delivery details → Get Order ID → Continue to WhatsApp → Confirm payment & delivery on WhatsApp.
+Shop → Add to bag → Enter delivery details → Get your order ID → Continue to WhatsApp → Confirm payment and delivery on WhatsApp.
 
 ## Included
 - Product catalogue with names, descriptions, prices, images and stock
@@ -12,7 +12,7 @@ Shop → Add to cart → Enter delivery details → Get Order ID → Continue to
 - Unique order IDs
 - Order tracking page
 - WhatsApp checkout
-- WhatsApp ordering directly from every product
+- WhatsApp support from the catalogue and Scent Finder
 - Admin workspace for products, orders, payment status, insights, archive, and settings
 - Supabase PostgreSQL database
 
@@ -39,15 +39,17 @@ The included `vercel.json` uses the `vercel-php` community runtime and routes th
 Supabase provides the PostgreSQL database and Auth used by this version.
 
 ### Environment variables
-- `BL_DB_DSN` — `pgsql:host=db.project-ref.supabase.co;port=5432;dbname=postgres;sslmode=require`
+- `BL_DB_DSN` — the exact PostgreSQL DSN for your Supabase project, for example `pgsql:host=aws-1-region.pooler.supabase.com;port=5432;dbname=postgres;sslmode=require`
 - `BL_DB_USER` and `BL_DB_PASSWORD` — the Supabase database account and password
 - `BL_SITE_URL` — the HTTPS site URL, without a trailing slash
 - `BL_WHATSAPP` — WhatsApp number with country code and no punctuation
+- `BL_WHATSAPP_DISPLAY` — formatted WhatsApp number shown to customers
+- `BL_CALL_DISPLAY` — formatted call number shown to customers
 - `BL_SUPABASE_URL` — your Supabase project URL, such as `https://project-id.supabase.co`
 - `BL_SUPABASE_ANON_KEY` — Supabase publishable/anon key; this may be sent to the browser
-- `BL_ADMIN_EMAIL` — the one Supabase Auth email allowed to access `/admin.php`; this deployment defaults to `bosslady@bossladyperfumery.com.ng` when omitted
+- `BL_ADMIN_EMAIL` — the one Supabase Auth email allowed to access `/admin`; required for admin access
 
-An empty stock field means unlimited stock. A numeric stock value is reserved atomically when an order is created and released once if the order is cancelled.
+An empty stock field means unlimited stock. A numeric stock value is reserved atomically when an order is created. When the store is next used after 24 hours without confirmation, a new order is automatically cancelled and its stock is released. An administrator can cancel it sooner.
 
 The WhatsApp number currently configured is 2349067956221.
 
@@ -58,7 +60,7 @@ Each order has a private URL containing a high-entropy access token, like:
 No customer login is required. Anyone who has the complete private link can view the order page. The order link is automatically included in the WhatsApp message sent to Boss Lady, where the product images can be opened at full size. The order ID and checkout phone number are required for status tracking.
 
 ## Admin security
-- `/admin.php` requires the authorized Supabase Auth email and password.
+- `/admin` requires the authorized Supabase Auth email and password.
 - The Supabase access token is stored in a Secure, HttpOnly, SameSite cookie and checked on every request.
 - The browser sends passwords only to the configured Supabase project, never to this PHP app.
 - All admin state-changing actions use POST and a CSRF token.
@@ -69,6 +71,7 @@ No customer login is required. Anyone who has the complete private link can view
 1. Create a Supabase project and enable the Email provider under Authentication → Providers.
 2. Create the Boss Lady admin user under Authentication → Users.
 3. Disable public sign-ups after creating that user.
-4. Add `BL_SUPABASE_URL`, `BL_SUPABASE_ANON_KEY`, and `BL_ADMIN_EMAIL` to Vercel.
+4. Run `migration-security.sql` and `migration-product-lifecycle.sql` for an existing database.
+5. Add `BL_SUPABASE_URL`, `BL_SUPABASE_ANON_KEY`, and `BL_ADMIN_EMAIL` to Vercel.
 
-The PHP server verifies the Supabase access token through Supabase's `/auth/v1/user` endpoint. Product uploads use the authenticated user's token and the public `product-images` bucket; the app never exposes a service-role key. Never put a Supabase service-role key in the browser, repository, or Vercel client-side variables.
+The PHP server verifies the Supabase access token through Supabase's `/auth/v1/user` endpoint. Product uploads use the authenticated user's token and the public `product-images` bucket; the app never exposes a service-role key. Never put a Supabase service-role key in the browser, repository, or Vercel client-side variables. Row-level security is enabled on the application tables so public Supabase roles cannot access store data directly.

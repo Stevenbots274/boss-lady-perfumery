@@ -25,6 +25,14 @@ try {
 }
 
 function naira($kobo){ return '₦'.number_format($kobo/100, 2); }
+function order_status_label($value)
+{
+    return ['new' => 'New', 'processing' => 'Processing', 'ready' => 'Ready for delivery', 'shipped' => 'Shipped', 'delivered' => 'Delivered', 'cancelled' => 'Cancelled'][$value] ?? 'Updated';
+}
+function payment_status_label($value)
+{
+    return ['awaiting_whatsapp' => 'Awaiting WhatsApp confirmation', 'pending' => 'Payment pending', 'paid' => 'Paid', 'failed' => 'Payment failed', 'refunded' => 'Refunded'][$value] ?? 'Payment update';
+}
 $config = require __DIR__.'/config.php';
 $waMsg = "Hello Boss Lady Perfumery, I am viewing order ".$order['order_code'].". Please help me with this order.";
 ?>
@@ -48,7 +56,7 @@ h1,h2{font-family:Georgia}.id{font-size:24px;color:#f0d18b}.row{display:flex;jus
 <div class="brand">BOSS LADY</div><div class="sub">PERFUMERY</div>
 <div class="box">
   <div class="muted">ORDER ID</div><div class="id"><?=htmlspecialchars($order['order_code'], ENT_QUOTES, 'UTF-8')?></div>
-  <p><span class="badge">Payment: <?=htmlspecialchars($order['payment_status'], ENT_QUOTES, 'UTF-8')?></span> <span class="badge">Order: <?=htmlspecialchars($order['order_status'], ENT_QUOTES, 'UTF-8')?></span></p>
+  <p><span class="badge">Payment: <?=htmlspecialchars(payment_status_label($order['payment_status']), ENT_QUOTES, 'UTF-8')?></span> <span class="badge">Order: <?=htmlspecialchars(order_status_label($order['order_status']), ENT_QUOTES, 'UTF-8')?></span></p>
 </div>
 <div class="box">
 <h2>Customer</h2>

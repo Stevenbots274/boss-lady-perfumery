@@ -26,7 +26,8 @@
     { "src": "^/terms/?$", "dest": "/api/index.php?route=/terms" },
     { "src": "^/$", "dest": "/api/index.php?route=/" },
     { "src": "^/index\\.php$", "dest": "/api/index.php?route=/" },
-    { "src": "^/.*\\.(php|sql|md)$", "status": 404 },
+    { "src": "^/(.*\\/)?\\.[^/]+$", "dest": "/api/index.php?route=/__blocked" },
+    { "src": "^/.*\\.(php|sql|md|htaccess)$", "dest": "/api/index.php?route=/__blocked" },
     { "handle": "filesystem" },
     { "src": "^/.*$", "status": 404 }
   ]

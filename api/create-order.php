@@ -2,6 +2,7 @@
 header('Content-Type: application/json; charset=utf-8');
 $config = require __DIR__ . '/../config.php';
 require __DIR__ . '/../db.php';
+require __DIR__ . '/../inventory.php';
 
 function fail_request($status, $message)
 {
@@ -80,7 +81,7 @@ if (!isset($input['items']) || !is_array($input['items']) || !$input['items'] ||
     fail_request(422, 'Add at least one valid product.');
 }
 
-function order_rate_allowed($pdo, $key)
+function order_rate_allowed($pdo, $key, $limit = 10)
 {
     try {
         $rateKey = hash('sha256', $key);
@@ -98,7 +99,7 @@ function order_rate_allowed($pdo, $key)
             $update = $pdo->prepare('UPDATE rate_limits SET window_started=NOW(),request_count=1 WHERE rate_key=?');
             $update->execute([$rateKey]);
             $allowed = true;
-        } elseif ((int) $row['request_count'] >= 10) {
+        } elseif ((int) $row['request_count'] >= $limit) {
             $allowed = false;
         } else {
             $update = $pdo->prepare('UPDATE rate_limits SET request_count=request_count+1 WHERE rate_key=?');
@@ -116,15 +117,6 @@ function order_rate_allowed($pdo, $key)
     }
 }
 
-$rateAllowed = order_rate_allowed($pdo, (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
-if ($rateAllowed === null) {
-    fail_request(503, 'Ordering is temporarily unavailable.');
-}
-if (!$rateAllowed) {
-    header('Retry-After: 600');
-    fail_request(429, 'Too many orders from this address. Try again later.');
-}
-
 $quantities = [];
 foreach ($input['items'] as $item) {
     if (!is_array($item) || !isset($item['id'], $item['qty']) || !is_scalar($item['id']) || !is_scalar($item['qty'])) {
@@ -140,11 +132,26 @@ foreach ($input['items'] as $item) {
         fail_request(422, 'A product quantity cannot exceed 20.');
     }
 }
+ksort($quantities, SORT_NUMERIC);
+
+$rateKeys = [
+    ['ip:' . (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 30],
+    ['email:' . strtolower($email), 10],
+];
+foreach ($rateKeys as [$key, $limit]) {
+    $rateAllowed = order_rate_allowed($pdo, $key, $limit);
+    if ($rateAllowed === null) fail_request(503, 'Ordering is temporarily unavailable.');
+    if (!$rateAllowed) {
+        header('Retry-After: 600');
+        fail_request(429, 'Too many order attempts. Try again later.');
+    }
+}
 
 $total = 0;
 $clean = [];
 try {
     $pdo->beginTransaction();
+    release_expired_reservations($pdo);
     $stmt = $pdo->prepare('SELECT id,name,price_kobo,stock FROM products WHERE id=? AND active=TRUE LIMIT 1 FOR UPDATE');
     $updateStock = $pdo->prepare('UPDATE products SET stock=? WHERE id=?');
 
