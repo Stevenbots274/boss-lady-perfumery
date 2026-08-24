@@ -1,0 +1,37 @@
+RewriteEngine On
+ErrorDocument 404 /not-found.php
+
+# All sessions and customer data must travel over HTTPS.
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [R=301,L]
+
+Options -Indexes
+<FilesMatch "^(config|db|admin_common|admin_layout|site_layout|cookie_notice)\.php$|^(schema|storage|migration-security|migration-product-lifecycle|migration-testimonials|README)\.(sql|md)$|^\.htaccess$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000"
+</IfModule>
+
+RewriteRule ^order/([a-fA-F0-9]{64})/?$ order.php?token=$1 [L]
+RewriteRule ^shop/?$ shop.php [L]
+RewriteRule ^about/?$ about.php [L]
+RewriteRule ^finder/?$ finder.php [L]
+RewriteRule ^faq/?$ faq.php [L]
+RewriteRule ^track/?$ track.php [L]
+RewriteRule ^privacy/?$ privacy.php [L]
+RewriteRule ^terms/?$ terms.php [L]
+RewriteRule ^account/?$ account.php [L]
+RewriteRule ^testimonial/?$ testimonial.php [L]
+RewriteRule ^testimonials/?$ testimonials.php [L]
+RewriteRule ^404/?$ not-found.php [L]
+RewriteRule ^admin/?$ admin.php [L]
+RewriteRule ^admin/products/?$ admin-products.php [L]
+RewriteRule ^admin/archive/?$ admin-archive.php [L]
+RewriteRule ^admin/orders/?$ admin-orders.php [L]
+RewriteRule ^admin/insights/?$ admin-insights.php [L]
+RewriteRule ^admin/settings/?$ admin-settings.php [L]

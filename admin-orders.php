@@ -1,0 +1,27 @@
+<?php
+require __DIR__ . '/admin_common.php';
+require __DIR__ . '/admin_layout.php';
+admin_start('Orders', 'orders', $config);
+$paymentLabels = ['awaiting_whatsapp' => 'Awaiting WhatsApp confirmation', 'pending' => 'Payment pending', 'paid' => 'Paid', 'failed' => 'Payment failed', 'refunded' => 'Refunded'];
+?>
+<section class="panel" id="orders">
+  <div class="section-title"><div><div class="eyebrow">Order desk</div><h2>Stay ahead of every order.</h2></div><p>Order status and payment status are managed separately. Order stages move forward only, so completed deliveries cannot be cancelled by mistake.</p></div>
+  <div class="order-list">
+    <?php if (!$orders): ?><p style="color:var(--muted)">Orders will appear here after the first checkout.</p><?php endif; ?>
+    <?php foreach ($orders as $o): ?>
+      <article class="order-card">
+        <div class="order-top"><div><h3><?=admin_h($o['order_code'])?></h3><p><?=admin_h($o['customer_name'])?> · <?=admin_h($o['phone'])?> · <?=admin_h($o['email'])?></p></div><span class="order-total">₦<?=number_format($o['total_kobo'] / 100, 2)?></span></div>
+        <form class="order-controls" method="post" data-loading-form>
+          <input type="hidden" name="csrf" value="<?=admin_h($csrfToken)?>">
+          <input type="hidden" name="id" value="<?= (int) $o['id'] ?>">
+          <div><label for="order-status-<?= (int) $o['id'] ?>">Order status</label><select id="order-status-<?= (int) $o['id'] ?>" name="order_status"><?php foreach ($allowedStatuses as $status): ?><option value="<?=admin_h($status)?>"<?=$o['order_status'] === $status ? ' selected' : ''?>><?=admin_h(admin_order_status_label($status))?></option><?php endforeach; ?></select></div>
+          <div><label for="payment-status-<?= (int) $o['id'] ?>">Payment status</label><select id="payment-status-<?= (int) $o['id'] ?>" name="payment_status"><?php foreach ($allowedPaymentStatuses as $status): ?><option value="<?=admin_h($status)?>"<?=$o['payment_status'] === $status ? ' selected' : ''?>><?=admin_h($paymentLabels[$status] ?? 'Payment update')?></option><?php endforeach; ?></select></div>
+          <button name="update_order" value="1">Save update</button>
+        </form>
+        <?php if ($o['order_status'] === 'new'): ?><p style="margin:13px 0 0;color:var(--muted);font-size:11px">Stock is reserved for 24 hours while this order awaits confirmation, then released when the store is next used.</p><?php endif; ?>
+        <div class="order-links"><a href="<?=admin_h(rtrim($config['site_url'], '/') . '/order/' . $o['order_token'])?>" target="_blank" rel="noreferrer">Open private order page ↗</a></div>
+      </article>
+    <?php endforeach; ?>
+  </div>
+</section>
+<?php admin_end(); ?>

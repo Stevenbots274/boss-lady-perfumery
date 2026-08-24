@@ -1,0 +1,52 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.php": {
+      "runtime": "vercel-php@0.9.0",
+      "regions": ["cpt1"]
+    }
+  },
+  "headers": [
+    {
+      "source": "/assets/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    }
+  ],
+  "routes": [
+    { "src": "^/assets/(.*)$", "headers": { "cache-control": "public, max-age=86400, stale-while-revalidate=604800" }, "continue": true },
+    { "src": "^/order/([a-fA-F0-9]{64})/?$", "dest": "/api/index.php?route=/order/$1" },
+    { "src": "^/api/create-order\\.php$", "dest": "/api/index.php?route=/api/create-order.php" },
+    { "src": "^/api/track-order\\.php$", "dest": "/api/index.php?route=/api/track-order.php" },
+    { "src": "^/api/customer-auth\\.php$", "dest": "/api/index.php?route=/api/customer-auth.php" },
+    { "src": "^/api/testimonials\\.php$", "dest": "/api/index.php?route=/api/testimonials.php" },
+    { "src": "^/api/admin-product-media\\.php$", "dest": "/api/index.php?route=/api/admin-product-media.php" },
+    { "src": "^/admin/products/?$", "dest": "/api/index.php?route=/admin/products" },
+    { "src": "^/admin/archive/?$", "dest": "/api/index.php?route=/admin/archive" },
+    { "src": "^/admin/orders/?$", "dest": "/api/index.php?route=/admin/orders" },
+    { "src": "^/admin/insights/?$", "dest": "/api/index.php?route=/admin/insights" },
+    { "src": "^/admin/testimonials/?$", "dest": "/api/index.php?route=/admin/testimonials" },
+    { "src": "^/admin/settings/?$", "dest": "/api/index.php?route=/admin/settings" },
+    { "src": "^/admin/?$", "dest": "/api/index.php?route=/admin" },
+    { "src": "^/admin\\.php$", "dest": "/api/index.php?route=/admin" },
+    { "src": "^/order\\.php$", "dest": "/api/index.php?route=/order.php" },
+    { "src": "^/shop/?$", "dest": "/api/index.php?route=/shop" },
+    { "src": "^/about/?$", "dest": "/api/index.php?route=/about" },
+    { "src": "^/finder/?$", "dest": "/api/index.php?route=/finder" },
+    { "src": "^/faq/?$", "dest": "/api/index.php?route=/faq" },
+    { "src": "^/track/?$", "dest": "/api/index.php?route=/track" },
+    { "src": "^/privacy/?$", "dest": "/api/index.php?route=/privacy" },
+    { "src": "^/terms/?$", "dest": "/api/index.php?route=/terms" },
+    { "src": "^/account/?$", "dest": "/api/index.php?route=/account" },
+    { "src": "^/testimonial/?$", "dest": "/api/index.php?route=/testimonial" },
+    { "src": "^/testimonials/?$", "dest": "/api/index.php?route=/testimonials" },
+    { "src": "^/404/?$", "dest": "/api/index.php?route=/404" },
+    { "src": "^/$", "dest": "/api/index.php?route=/" },
+    { "src": "^/index\\.php$", "dest": "/api/index.php?route=/" },
+    { "src": "^/(.*\\/)?\\.[^/]+$", "dest": "/api/index.php?route=/__blocked" },
+    { "src": "^/.*\\.(php|sql|md|htaccess)$", "dest": "/api/index.php?route=/__blocked" },
+    { "handle": "filesystem" },
+    { "src": "^/.*$", "dest": "/api/index.php?route=/404" }
+  ]
+}

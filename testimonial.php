@@ -1,0 +1,41 @@
+<?php
+$config = require __DIR__ . '/config.php';
+require_once __DIR__ . '/customer_auth.php';
+require __DIR__ . '/db.php';
+$customer = customer_auth_session($config);
+$orderId = filter_var($_GET['order'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+$order = null;
+$pageError = '';
+if ($customer && $orderId !== false && $pdo instanceof PDO) {
+    try {
+        $statement = $pdo->prepare("SELECT o.id,o.order_code,o.order_status,o.created_at,COALESCE(json_agg(json_build_object('name',oi.product_name,'quantity',oi.quantity) ORDER BY oi.id) FILTER (WHERE oi.id IS NOT NULL),'[]'::json) AS items,t.id AS testimonial_id,t.status AS testimonial_status FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id LEFT JOIN testimonials t ON t.order_id=o.id WHERE o.id=? AND lower(o.email)=lower(?) GROUP BY o.id,t.id LIMIT 1");
+        $statement->execute([(int) $orderId, $customer['email']]);
+        $order = $statement->fetch() ?: null;
+        if ($order) {
+            $decoded = json_decode($order['items'] ?? '[]', true);
+            $order['items'] = is_array($decoded) ? $decoded : [];
+        }
+    } catch (Throwable $e) {
+        error_log('Boss Lady testimonial page lookup failed.');
+        $pageError = 'Testimonials are being prepared. Please try again shortly.';
+    }
+}
+if ($customer && !$pageError && (!$order || $order['order_status'] !== 'delivered')) $pageError = 'Only delivered orders belonging to your account can receive a testimonial.';
+function testimonial_page_h($value) { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
+require __DIR__ . '/site_layout.php';
+site_start($config, 'Share your scent story | Boss Lady Perfumery', 'Share a verified Boss Lady Perfumery fragrance experience.', 'account', false);
+?>
+<style>
+.testimonial-form-wrap{display:grid;grid-template-columns:.8fr 1.2fr;gap:55px;align-items:start}.testimonial-intro h2{margin:18px 0;font:400 clamp(38px,5vw,60px)/.98 var(--serif);letter-spacing:-.04em}.testimonial-intro p,.testimonial-form-card p{max-width:450px;color:var(--muted);font-size:14px;line-height:1.8}.testimonial-note{margin-top:28px;padding:18px 20px;border-left:2px solid var(--gold);background:var(--rose-light);color:var(--muted);font-size:12px;line-height:1.7}.testimonial-form-card{padding:30px;background:var(--ink);color:var(--cream)}.testimonial-form-card h2{margin:0 0 8px;font:400 34px var(--serif)}.testimonial-form{display:grid;gap:10px;margin-top:24px}.testimonial-form label{color:#c8b9bb;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.testimonial-form textarea,.testimonial-form input[type=file]{padding:13px;border:1px solid #5f5053;background:#302629;color:var(--cream)}.testimonial-form textarea{min-height:150px;resize:vertical;line-height:1.6}.rating-picker{display:flex;flex-direction:row-reverse;justify-content:flex-end;gap:4px}.rating-picker input{position:absolute;opacity:0}.rating-picker label{padding:2px;color:#6e6062;font:28px/1 var(--serif);cursor:pointer}.rating-picker label:hover,.rating-picker label:hover~label,.rating-picker input:checked~label{color:var(--gold)}.media-help{margin:0!important;color:#b9acad!important;font-size:11px!important;line-height:1.6!important}.upload-status{min-height:20px;color:var(--rose);font-size:12px;line-height:1.6}.upload-progress{height:4px;background:#ffffff20}.upload-progress span{display:block;width:0;height:100%;background:var(--gold);transition:width .15s}.testimonial-submit{margin-top:8px;padding:13px 18px;border:0;border-radius:999px;background:var(--rose);color:#27171b;font-weight:700;cursor:pointer}.testimonial-submit:disabled{opacity:.55;cursor:wait}.testimonial-success,.testimonial-error{padding:20px;background:var(--rose-light);color:var(--ink);font-size:13px;line-height:1.7}.testimonial-order{margin:20px 0 0;padding:18px;border:1px solid #ffffff1f;color:#c8b9bb;font-size:12px;line-height:1.7}.testimonial-order strong{color:var(--cream)}
+@media(max-width:850px){.testimonial-form-wrap{grid-template-columns:1fr;gap:30px}}@media(max-width:520px){.testimonial-form-card{padding:22px}}
+</style>
+<section class="page-hero"><div class="site-wrap page-hero-inner reveal"><div class="eyebrow">Verified customer story</div><h1>Tell us how<br><em>your scent feels.</em></h1><p>A short note helps another woman find the fragrance that feels like her.</p></div></section>
+<section class="page-section"><div class="site-wrap testimonial-form-wrap">
+  <?php if (!$customer): ?><div class="testimonial-intro reveal"><div class="eyebrow">Sign in first</div><h2>Your story<br><em>starts with an account.</em></h2><p>Sign in to connect a testimonial to your delivered order. Your account is optional for shopping and checkout.</p><a class="site-button site-button-rose" style="margin-top:18px" href="/account">Sign in to continue ↗</a></div>
+  <?php elseif ($pageError): ?><div class="testimonial-intro reveal"><div class="eyebrow">Not quite yet</div><h2>We need a<br><em>delivered order.</em></h2><p><?=testimonial_page_h($pageError)?></p><a class="site-button site-button-outline" style="margin-top:18px" href="/account">Back to my orders ↗</a></div>
+  <?php elseif ($order && $order['testimonial_id']): ?><div class="testimonial-intro reveal"><div class="eyebrow">Already received</div><h2>Your words<br><em>are in the queue.</em></h2><p>This order already has a <?=testimonial_page_h($order['testimonial_status'] === 'approved' ? 'published' : $order['testimonial_status'])?> testimonial. Thank you for sharing your scent story.</p><a class="site-button site-button-outline" style="margin-top:18px" href="/account">Back to my orders ↗</a></div>
+  <?php else: ?><div class="testimonial-intro reveal"><div class="eyebrow">Order <?=testimonial_page_h($order['order_code'])?></div><h2>Make it<br><em>personal.</em></h2><p>Your testimonial is reviewed before it appears publicly. We show your first name only and mark it as a verified purchase.</p><div class="testimonial-note">One testimonial per delivered order. Media is optional. Images and videos are stored separately from product images.</div></div>
+  <div class="testimonial-form-card reveal"><h2>Share your experience.</h2><p>Tell the story in your own words.</p><div class="testimonial-order"><strong>Order <?=testimonial_page_h($order['order_code'])?></strong><br><?php foreach ($order['items'] as $index => $item): ?><?=testimonial_page_h($item['name'])?> × <?=intval($item['quantity'])?><?php if ($index + 1 < count($order['items'])): ?> · <?php endif; ?><?php endforeach; ?></div><form class="testimonial-form" id="testimonialForm" data-order-id="<?=intval($order['id'])?>"><label>Your rating</label><div class="rating-picker" aria-label="Choose a rating"><input id="rating5" name="rating" type="radio" value="5" checked><label for="rating5" title="5 stars">★</label><input id="rating4" name="rating" type="radio" value="4"><label for="rating4" title="4 stars">★</label><input id="rating3" name="rating" type="radio" value="3"><label for="rating3" title="3 stars">★</label><input id="rating2" name="rating" type="radio" value="2"><label for="rating2" title="2 stars">★</label><input id="rating1" name="rating" type="radio" value="1"><label for="rating1" title="1 star">★</label></div><label for="testimonialMessage">Your testimonial</label><textarea id="testimonialMessage" maxlength="3000" placeholder="What did you wear it for? How did it make you feel?" required></textarea><label for="testimonialMedia">Add a photo or short video <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label><input id="testimonialMedia" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"><p class="media-help">Images up to 10 MB. MP4 or MOV videos up to 50 MB and 60 seconds.</p><div class="upload-progress" aria-hidden="true"><span id="uploadProgress"></span></div><div class="upload-status" id="uploadStatus" role="status" aria-live="polite"></div><button class="testimonial-submit" type="submit">Send for review ↗</button></form><div id="testimonialResult" aria-live="polite"></div></div><?php endif; ?>
+</div></section>
+<?php if ($customer && $order && !$pageError && !$order['testimonial_id']): ?><script src="/assets/testimonial.js" defer></script><?php endif; ?>
+<?php site_end($config); ?>
