@@ -86,30 +86,30 @@ if (!isset($input['items']) || !is_array($input['items']) || !$input['items'] ||
     fail_request(422, 'Add at least one valid product.');
 }
 
-function order_rate_allowed($pdo, $key, $limit = 10)
+function order_rate_allowed($pdo, $keys)
 {
     try {
-        $rateKey = hash('sha256', $key);
         $pdo->beginTransaction();
         $insert = $pdo->prepare('INSERT INTO rate_limits(rate_key,window_started,request_count) VALUES(?,CURRENT_TIMESTAMP,0) ON CONFLICT (rate_key) DO NOTHING');
-        $insert->execute([$rateKey]);
         $select = $pdo->prepare('SELECT window_started,request_count FROM rate_limits WHERE rate_key=? FOR UPDATE');
-        $select->execute([$rateKey]);
-        $row = $select->fetch();
-        if (!$row) {
-            throw new RuntimeException('Rate limit record could not be created.');
-        }
-        $windowStarted = strtotime($row['window_started']);
-        if ($windowStarted === false || time() - $windowStarted >= 600) {
-            $update = $pdo->prepare('UPDATE rate_limits SET window_started=NOW(),request_count=1 WHERE rate_key=?');
-            $update->execute([$rateKey]);
-            $allowed = true;
-        } elseif ((int) $row['request_count'] >= $limit) {
-            $allowed = false;
-        } else {
-            $update = $pdo->prepare('UPDATE rate_limits SET request_count=request_count+1 WHERE rate_key=?');
-            $update->execute([$rateKey]);
-            $allowed = true;
+        $reset = $pdo->prepare('UPDATE rate_limits SET window_started=NOW(),request_count=1 WHERE rate_key=?');
+        $increment = $pdo->prepare('UPDATE rate_limits SET request_count=request_count+1 WHERE rate_key=?');
+        $allowed = true;
+        foreach ($keys as [$key, $limit]) {
+            $rateKey = hash('sha256', $key);
+            $insert->execute([$rateKey]);
+            $select->execute([$rateKey]);
+            $row = $select->fetch();
+            if (!$row) throw new RuntimeException('Rate limit record could not be created.');
+            $windowStarted = strtotime($row['window_started']);
+            if ($windowStarted === false || time() - $windowStarted >= 600) {
+                $reset->execute([$rateKey]);
+            } elseif ((int) $row['request_count'] >= $limit) {
+                $allowed = false;
+                break;
+            } else {
+                $increment->execute([$rateKey]);
+            }
         }
         $pdo->commit();
         return $allowed;
@@ -143,13 +143,11 @@ $rateKeys = [
     ['ip:' . (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 30],
     ['email:' . strtolower($email), 10],
 ];
-foreach ($rateKeys as [$key, $limit]) {
-    $rateAllowed = order_rate_allowed($pdo, $key, $limit);
-    if ($rateAllowed === null) fail_request(503, 'Ordering is temporarily unavailable.');
-    if (!$rateAllowed) {
-        header('Retry-After: 600');
-        fail_request(429, 'Too many order attempts. Try again later.');
-    }
+$rateAllowed = order_rate_allowed($pdo, $rateKeys);
+if ($rateAllowed === null) fail_request(503, 'Ordering is temporarily unavailable.');
+if (!$rateAllowed) {
+    header('Retry-After: 600');
+    fail_request(429, 'Too many order attempts. Try again later.');
 }
 
 $total = 0;
