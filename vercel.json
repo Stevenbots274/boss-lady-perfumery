@@ -15,6 +15,7 @@
     }
   ],
   "routes": [
+    { "src": "^/assets/(.*)$", "headers": { "cache-control": "public, max-age=86400, stale-while-revalidate=604800" }, "continue": true },
     { "src": "^/order/([a-fA-F0-9]{64})/?$", "dest": "/api/index.php?route=/order/$1" },
     { "src": "^/api/create-order\\.php$", "dest": "/api/index.php?route=/api/create-order.php" },
     { "src": "^/api/track-order\\.php$", "dest": "/api/index.php?route=/api/track-order.php" },
