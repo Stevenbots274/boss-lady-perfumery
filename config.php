@@ -19,7 +19,7 @@ if (!$publicSupabaseKey && substr_count($supabaseKey, '.') === 2) {
     $payload = json_decode(base64_decode($encodedPayload), true);
     $publicSupabaseKey = is_array($payload) && ($payload['role'] ?? '') === 'anon';
 }
-$dbDsn = trim(getenv('BL_DB_DSN') ?: '');
+$dbDsn = trim(getenv('BL_DB_DSN') ?: 'pgsql:host=aws-1-eu-west-1.pooler.supabase.com;port=5432;dbname=postgres;sslmode=require');
 $dbUser = getenv('BL_DB_USER') ?: '';
 $adminEmail = strtolower(trim(getenv('BL_ADMIN_EMAIL') ?: ''));
 return [
