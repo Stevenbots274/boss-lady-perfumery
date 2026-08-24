@@ -31,6 +31,7 @@ $supportUrl = 'https://wa.me/' . $whatsapp . '?text=' . rawurlencode('Hello Boss
 @media(max-width:520px){.announcement{font-size:9px}.announcement a{display:block;margin:5px 0 0}.wordmark strong{font-size:12px}.wordmark small{font-size:8px}.nav-cart{padding:10px 12px}.hero h1{font-size:55px}.hero-lede{font-size:14px}.hero-proof{gap:20px;margin-top:42px}.hero-art{height:340px}.service strong{font-size:11px}.service span{font-size:10px}.product-grid{grid-template-columns:1fr}.empty-product{grid-template-columns:1fr}.empty-mark{height:120px}.form-grid{grid-template-columns:1fr}.field-full{grid-column:auto}.checkout-card{padding:20px}.track-section{padding:65px 0}}
 .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}.reveal.visible{opacity:1;transform:none}@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
 </style>
+<style>@media(max-width:850px){.footer-links{flex-wrap:wrap;gap:14px 18px}.footer-bottom{display:block}.footer-bottom span{display:block;margin-top:8px}}</style>
 </head>
 <body>
 <div class="announcement">Complimentary delivery guidance with every order <a href="/shop">Explore the collection →</a></div>
